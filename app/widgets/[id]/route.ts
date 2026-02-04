@@ -1,8 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import { deleteWidget, updateWidget } from "@/lib/mockData";
 
+const BACKEND_API_BASE_URL = process.env.BACKEND_API_BASE_URL;
+
+async function proxyToBackend(req: NextRequest, id: string) {
+  const authorization = req.headers.get("authorization") ?? "";
+  const upstream = await fetch(`${BACKEND_API_BASE_URL}/widgets/${id}`, {
+    method: req.method,
+    headers: {
+      "Content-Type": req.headers.get("content-type") ?? "application/json",
+      ...(authorization ? { Authorization: authorization } : {}),
+    },
+    body: req.method === "GET" ? undefined : await req.text(),
+  });
+
+  const contentType = upstream.headers.get("content-type") ?? "application/json";
+  const bodyText = await upstream.text();
+  return new NextResponse(bodyText, { status: upstream.status, headers: { "Content-Type": contentType } });
+}
+
 export async function PUT(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id: idParam } = await context.params;
+
+  if (BACKEND_API_BASE_URL) {
+    return proxyToBackend(req, idParam);
+  }
+
   const id = Number(idParam);
 
   if (Number.isNaN(id)) {
@@ -66,6 +89,11 @@ export async function PUT(req: NextRequest, context: { params: Promise<{ id: str
 
 export async function DELETE(_req: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id: idParam } = await context.params;
+
+  if (BACKEND_API_BASE_URL) {
+    return proxyToBackend(_req, idParam);
+  }
+
   const id = Number(idParam);
 
   if (Number.isNaN(id)) {

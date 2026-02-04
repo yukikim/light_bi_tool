@@ -770,6 +770,40 @@ Ran terminal command:  npm run dev
   - `POST /auth/register` → `POST /auth/login` → `POST /api/queries` → `POST /execute`
   - 結果: 成功（`OK: Next proxy register -> login -> create query -> execute`）
   - スクリプト: [scripts/smoke_next.mjs](scripts/smoke_next.mjs)
+
+---
+
+## 2026-02-04: dashboards/widgets を backend へ移行（M1継続）
+
+### 追加したもの
+
+- backend に dashboards/widgets のCRUDを追加
+  - [backend/src/dashboards](backend/src/dashboards)
+    - `GET/POST /dashboards`, `GET /dashboards/:id`
+  - [backend/src/widgets](backend/src/widgets)
+    - `GET/POST /widgets`, `PUT/DELETE /widgets/:id`
+  - いずれもJWTガード必須（`Authorization: Bearer <token>`）
+
+### DB
+
+- 初回起動用スキーマに `dashboards`, `widgets` を追加
+  - [backend/sql/schema.sql](backend/sql/schema.sql)
+- 既存ボリューム向けに idempotent な migrate を追加
+  - [backend/sql/migrate.sql](backend/sql/migrate.sql)
+  - `npm run db:migrate` で適用（`psql` にstdinで流し込む方式）
+
+### Next.js 側（プロキシ拡張）
+
+- `BACKEND_API_BASE_URL` 設定時に backend へプロキシする対象を追加
+  - [app/dashboards/route.ts](app/dashboards/route.ts)
+  - [app/dashboards/[id]/route.ts](app/dashboards/%5Bid%5D/route.ts)
+  - [app/widgets/route.ts](app/widgets/route.ts)
+  - [app/widgets/[id]/route.ts](app/widgets/%5Bid%5D/route.ts)
+
+### 動作確認
+
+- `npm --prefix backend run build` 成功
+- `npm run build` 成功
 - `next start -p 3012` で `POST /widgets` -> `201` を確認
 
 ---

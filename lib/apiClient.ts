@@ -4,6 +4,11 @@ export type LoginResponse = {
   token: string;
 };
 
+export type RegisterResponse = {
+  token?: string;
+  data?: { id: number; email: string };
+};
+
 export type Dashboard = {
   id: string | number;
   name: string;
@@ -80,6 +85,29 @@ export async function login(email: string, password: string): Promise<LoginRespo
   }
 
   return { token: json.token };
+}
+
+export async function register(email: string, password: string): Promise<RegisterResponse> {
+  const baseUrl = getBaseUrl();
+
+  const res = await fetch(`${baseUrl}/auth/register`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ email, password }),
+  });
+
+  const json = await res.json().catch(() => undefined);
+
+  if (!res.ok) {
+    const message = json?.error?.message ?? json?.message ?? "登録に失敗しました";
+    throw new Error(message);
+  }
+
+  // backend: { data: { id, email } }
+  // dev fallback: { token }
+  return (json ?? {}) as RegisterResponse;
 }
 
 export async function fetchDashboards(token: string): Promise<Dashboard[]> {

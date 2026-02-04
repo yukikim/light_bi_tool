@@ -1,4 +1,4 @@
--- Minimal schema for M1
+-- Idempotent migration for local dev (safe to re-run)
 
 CREATE TABLE IF NOT EXISTS users (
   id BIGSERIAL PRIMARY KEY,

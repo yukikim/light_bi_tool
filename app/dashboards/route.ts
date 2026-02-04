@@ -1,12 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createDashboard, getDashboards } from "@/lib/mockData";
 
-export async function GET() {
+const BACKEND_API_BASE_URL = process.env.BACKEND_API_BASE_URL;
+
+async function proxyToBackend(req: NextRequest) {
+  const authorization = req.headers.get("authorization") ?? "";
+  const upstream = await fetch(`${BACKEND_API_BASE_URL}/dashboards`, {
+    method: req.method,
+    headers: {
+      "Content-Type": req.headers.get("content-type") ?? "application/json",
+      ...(authorization ? { Authorization: authorization } : {}),
+    },
+    body: req.method === "GET" ? undefined : await req.text(),
+  });
+
+  const contentType = upstream.headers.get("content-type") ?? "application/json";
+  const bodyText = await upstream.text();
+  return new NextResponse(bodyText, { status: upstream.status, headers: { "Content-Type": contentType } });
+}
+
+export async function GET(req: NextRequest) {
+  if (BACKEND_API_BASE_URL) {
+    return proxyToBackend(req);
+  }
   const data = getDashboards();
   return NextResponse.json({ data }, { status: 200 });
 }
 
 export async function POST(req: NextRequest) {
+  if (BACKEND_API_BASE_URL) {
+    return proxyToBackend(req);
+  }
   try {
     const body = (await req.json().catch(() => null)) as { name?: string } | null;
 
