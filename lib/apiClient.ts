@@ -166,6 +166,90 @@ export async function fetchWidgets(token: string, dashboardId: string | number):
   return data as Widget[];
 }
 
+export async function updateWidgetApi(
+  token: string,
+  id: string | number,
+  payload: Partial<Pick<Widget, "queryId" | "name" | "type" | "config" | "positionX" | "positionY" | "width" | "height">>,
+): Promise<Widget> {
+  const baseUrl = getBaseUrl();
+
+  const res = await fetch(`${baseUrl}/widgets/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const json = await res.json().catch(() => undefined);
+
+  if (!res.ok) {
+    const message = json?.error?.message ?? json?.message ?? "ウィジェットの更新に失敗しました";
+    throw new Error(message);
+  }
+
+  const data = json?.data ?? json;
+  return data as Widget;
+}
+
+export async function createWidgetApi(
+  token: string,
+  payload: {
+    dashboardId: string | number;
+    queryId: string | number;
+    name: string;
+    type: WidgetType;
+    config?: Record<string, unknown>;
+  },
+): Promise<Widget> {
+  const baseUrl = getBaseUrl();
+
+  const res = await fetch(`${baseUrl}/widgets`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const json = await res.json().catch(() => undefined);
+
+  if (!res.ok) {
+    const message = json?.error?.message ?? json?.message ?? "ウィジェットの作成に失敗しました";
+    throw new Error(message);
+  }
+
+  const data = json?.data ?? json;
+  return data as Widget;
+}
+
+export async function deleteWidgetApi(
+  token: string,
+  id: string | number,
+): Promise<{ id: string | number }> {
+  const baseUrl = getBaseUrl();
+
+  const res = await fetch(`${baseUrl}/widgets/${id}`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const json = await res.json().catch(() => undefined);
+
+  if (!res.ok) {
+    const message = json?.error?.message ?? json?.message ?? "ウィジェットの削除に失敗しました";
+    throw new Error(message);
+  }
+
+  const data = json?.data ?? json;
+  return data as { id: string | number };
+}
+
 export async function executeQuery(
   token: string,
   queryId: string | number,

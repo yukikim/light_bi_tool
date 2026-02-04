@@ -101,6 +101,92 @@ export function getWidgetsByDashboardId(dashboardId: number): MockWidget[] {
   return widgets.filter((w) => w.dashboardId === dashboardId);
 }
 
+export function getWidgetById(id: number): MockWidget | undefined {
+  return widgets.find((w) => w.id === id);
+}
+
+export function updateWidget(
+  id: number,
+  patch: Partial<Pick<MockWidget, "queryId" | "name" | "type" | "config" | "positionX" | "positionY" | "width" | "height">>,
+): MockWidget | undefined {
+  const w = widgets.find((x) => x.id === id);
+  if (!w) return undefined;
+
+  if (patch.queryId !== undefined) w.queryId = patch.queryId;
+  if (patch.name !== undefined) w.name = patch.name;
+  if (patch.type !== undefined) w.type = patch.type;
+  if (patch.config !== undefined) w.config = patch.config;
+  if (patch.positionX !== undefined) w.positionX = patch.positionX;
+  if (patch.positionY !== undefined) w.positionY = patch.positionY;
+  if (patch.width !== undefined) w.width = patch.width;
+  if (patch.height !== undefined) w.height = patch.height;
+
+  return w;
+}
+
+export function createWidget(input: {
+  dashboardId: number;
+  queryId: number;
+  name: string;
+  type: MockWidgetType;
+  config?: Record<string, unknown>;
+}): MockWidget {
+  // ざっくり配置: 既存Widget数に応じて左上から並べる
+  const existing = getWidgetsByDashboardId(input.dashboardId);
+  const index = existing.length;
+
+  const widget: MockWidget = {
+    id: widgetIdSeq++,
+    dashboardId: input.dashboardId,
+    queryId: input.queryId,
+    name: input.name,
+    type: input.type,
+    config: input.config,
+    positionX: (index % 3) * 4,
+    positionY: Math.floor(index / 3) * 3,
+    width: 4,
+    height: 3,
+  };
+
+  widgets.push(widget);
+  return widget;
+}
+
+export function compactWidgetsLayout(dashboardId: number): MockWidget[] {
+  const target = widgets
+    .filter((w) => w.dashboardId === dashboardId)
+    .sort((a, b) => {
+      const ay = a.positionY ?? 0;
+      const by = b.positionY ?? 0;
+      if (ay !== by) return ay - by;
+      const ax = a.positionX ?? 0;
+      const bx = b.positionX ?? 0;
+      if (ax !== bx) return ax - bx;
+      return a.id - b.id;
+    });
+
+  // 3列グリッド想定（将来 grid-layout へ移行しても、基準の整列として維持できる）
+  for (let i = 0; i < target.length; i++) {
+    const w = target[i];
+    w.positionX = (i % 3) * 4;
+    w.positionY = Math.floor(i / 3) * 3;
+    w.width = w.width ?? 4;
+    w.height = w.height ?? 3;
+  }
+
+  return target;
+}
+
+export function deleteWidget(id: number): boolean {
+  const index = widgets.findIndex((w) => w.id === id);
+  if (index === -1) return false;
+
+  const dashboardId = widgets[index].dashboardId;
+  widgets.splice(index, 1);
+  compactWidgetsLayout(dashboardId);
+  return true;
+}
+
 export function getQueries(): MockQuery[] {
   return queries;
 }

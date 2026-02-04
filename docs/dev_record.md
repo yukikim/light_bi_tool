@@ -702,3 +702,74 @@ Ran terminal command:  npm run dev
 ### 補足
 
 - `/execute` は **POSTのみ** 実装（GETは `405` になるのが正）
+
+---
+
+## 2026-02-04 Widget のクエリ選択（紐付け）
+
+### 追加したもの
+
+- `PUT /widgets/[id]`：Widgetの `queryId`（ほか name/type/config 等）を更新できるモックAPI
+- ダッシュボード詳細で各Widgetに「クエリ」セレクトを表示し、変更時に `PUT /widgets/{id}` で保存
+
+### 動作
+
+- [app/dashboard/[id]/page.tsx](app/dashboard/%5Bid%5D/page.tsx) の各Widgetカードにクエリ選択が出る
+- 選択を変えると、そのWidgetの `queryId` が更新され、WidgetRenderer が新しい `queryId` で再実行される
+
+---
+
+## 2026-02-04 Widget の新規追加
+
+### 追加したもの
+
+- `POST /widgets`：dashboardId/queryId/name/type からWidgetを作成（モック）
+- [app/dashboard/[id]/page.tsx](app/dashboard/%5Bid%5D/page.tsx) に「ウィジェット追加」フォーム
+  - ウィジェット名 / タイプ（table|bar|line） / クエリ を選択
+  - config（JSON, 任意）を入力可能（テンプレ挿入あり）
+  - 作成後はwidgets配列へ追加して即時表示
+
+### 動作確認
+
+- `npm run build` 成功
+- `next start -p 3012` で `POST /widgets` -> `201` を確認
+
+---
+
+## 2026-02-04 Widget の削除（DELETE）
+
+### 追加したもの
+
+- `DELETE /widgets/[id]`：Widgetを削除（モック）
+- ダッシュボード詳細の各Widgetヘッダに「削除」ボタンを追加
+  - 確認ダイアログOKで削除APIを呼び、成功したら画面から即時除去
+
+### 動作確認
+
+- `npm run build` 成功
+- `next start -p 3013` で `POST /widgets` -> `DELETE /widgets/{id}` -> `GET /widgets?dashboardId=1` を確認（削除反映OK）
+
+### 自動整列（詰め直し）
+
+- 削除後に同一ダッシュボード内の `positionX/positionY` を左上から詰め直すように変更
+  - 将来 `grid-layout` などに移行した際に「穴」が残らないための下準備
+
+---
+
+## 2026-02-04 Widget の編集（名前/タイプ/config）
+
+### 追加したもの
+
+- Widgetヘッダに「編集」ボタン
+- 編集パネル（名前 / タイプ / config(JSON)）
+  - `config` はJSONオブジェクトのみ許可（未入力なら変更しない）
+  - 「空オブジェクト」ボタンで `{}` を即入力
+
+### 保存
+
+- `PUT /widgets/{id}` を呼び、成功時に widgets state を更新して反映
+
+### 入力補助（configテンプレ）
+
+- 編集パネルに「テンプレ」ボタンを追加（typeに応じて `xKey/yKeys` の雛形を挿入）
+- type変更時、config未入力なら自動でテンプレを入れる（既に入力がある場合は保持）
