@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16
+    container_name: lightbi_db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: lightbi
+      POSTGRES_PASSWORD: lightbi
+      POSTGRES_DB: lightbi
+    volumes:
+      - lightbi_pgdata:/var/lib/postgresql/data
+      - ./backend/sql/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+
+volumes:
+  lightbi_pgdata:

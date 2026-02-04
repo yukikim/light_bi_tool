@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+const BACKEND_API_BASE_URL = process.env.BACKEND_API_BASE_URL;
+
 // 開発用の簡易ユーザーストア（メモリ上のみ、再起動で消える）
 const users = new Map<string, string>(); // email -> password(平文)
 
@@ -9,6 +11,20 @@ function createToken(email: string): string {
 }
 
 export async function POST(req: NextRequest) {
+  if (BACKEND_API_BASE_URL) {
+    const upstream = await fetch(`${BACKEND_API_BASE_URL}/auth/register`, {
+      method: "POST",
+      headers: {
+        "Content-Type": req.headers.get("content-type") ?? "application/json",
+      },
+      body: await req.text(),
+    });
+
+    const contentType = upstream.headers.get("content-type") ?? "application/json";
+    const bodyText = await upstream.text();
+    return new NextResponse(bodyText, { status: upstream.status, headers: { "Content-Type": contentType } });
+  }
+
   try {
     const body = await req.json().catch(() => null) as { email?: string; password?: string } | null;
 

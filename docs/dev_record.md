@@ -732,6 +732,44 @@ Ran terminal command:  npm run dev
 ### 動作確認
 
 - `npm run build` 成功
+
+---
+
+## 2026-02-04: M1（Backend/DB本実装）着手
+
+### 追加したもの
+
+- NestJS backend を [backend](backend) に追加
+  - `POST /auth/register`, `POST /auth/login`（JWT発行）
+  - `GET/POST/PUT/DELETE /queries`（DB永続）
+  - `POST /execute`（SELECT限定、禁止語、LIMIT強制、`statement_timeout`、`{{name}}` パラメータバインド）
+  - `GET /health`
+- PostgreSQL の起動用に [docker-compose.yml](docker-compose.yml) と [backend/sql/schema.sql](backend/sql/schema.sql) を追加
+- Next.js 側の Route Handler を `BACKEND_API_BASE_URL` 設定時にbackendへプロキシ
+  - [app/auth/login/route.ts](app/auth/login/route.ts)
+  - [app/auth/register/route.ts](app/auth/register/route.ts)
+  - [app/api/queries/route.ts](app/api/queries/route.ts)
+  - [app/api/queries/[id]/route.ts](app/api/queries/%5Bid%5D/route.ts)
+  - [app/execute/route.ts](app/execute/route.ts)
+- Next.js の型チェックにbackendが混ざらないように [tsconfig.json](tsconfig.json) の `exclude` に `backend` を追加
+- 起動用の補助スクリプトを [package.json](package.json) に追加（`dev:backend`, `dev:db` など）
+
+### 動作確認
+
+- backend: `npm --prefix backend run build` 成功
+- frontend: `npm run build` 成功
+
+### 注意
+
+- `docker compose up -d db` は Docker Desktop 起動が前提（macOSでdaemon未起動だと失敗する）。
+
+### Next.js 経由の疎通確認（proxy）
+
+- `.env.local` に `BACKEND_API_BASE_URL=http://localhost:4000` を追加
+- Next.js dev + backend を起動し、Next.js 側のエンドポイント経由でスモーク実行
+  - `POST /auth/register` → `POST /auth/login` → `POST /api/queries` → `POST /execute`
+  - 結果: 成功（`OK: Next proxy register -> login -> create query -> execute`）
+  - スクリプト: [scripts/smoke_next.mjs](scripts/smoke_next.mjs)
 - `next start -p 3012` で `POST /widgets` -> `201` を確認
 
 ---
