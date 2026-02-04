@@ -14,6 +14,17 @@ export type Query = {
   id: string | number;
   name: string;
   sql: string;
+  paramDefs?: QueryParamDef[];
+};
+
+export type QueryParamType = "string" | "number" | "date" | "boolean";
+
+export type QueryParamDef = {
+  name: string;
+  label?: string;
+  type: QueryParamType;
+  required?: boolean;
+  default?: string | number | boolean;
 };
 
 export type WidgetType = "table" | "line" | "bar";
@@ -346,7 +357,7 @@ export async function createQueryApi(token: string, name: string, sql: string): 
 export async function updateQueryApi(
   token: string,
   id: string | number,
-  payload: { name: string; sql: string },
+  payload: { name: string; sql: string; paramDefs?: QueryParamDef[] },
 ): Promise<Query> {
   const baseUrl = getBaseUrl();
 

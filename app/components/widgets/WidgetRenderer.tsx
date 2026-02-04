@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import type { Widget } from "@/lib/apiClient";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { QueryParamDef, Widget } from "@/lib/apiClient";
 import { executeQuery, type ExecuteResult } from "@/lib/apiClient";
 import { TableChart } from "@/app/components/charts/Table";
 import { BarChart } from "@/app/components/charts/BarChart";
@@ -64,14 +64,68 @@ function buildSeries(cfg: ChartConfig, columns: string[]): SeriesConfig[] {
 
 type Props = {
   widget: Widget;
-  from?: string;
-  to?: string;
+  queryParamDefs?: QueryParamDef[];
+  globalParams?: Record<string, string | number | boolean | undefined>;
 };
 
-export function WidgetRenderer({ widget, from, to }: Props) {
+function coerceValue(def: QueryParamDef, raw: string): unknown {
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) return undefined;
+  if (def.type === "number") {
+    const n = Number(trimmed);
+    return Number.isFinite(n) ? n : undefined;
+  }
+  if (def.type === "boolean") {
+    return trimmed === "true";
+  }
+  return trimmed;
+}
+
+export function WidgetRenderer({ widget, queryParamDefs, globalParams }: Props) {
   const [data, setData] = useState<ExecuteResult | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const defs = useMemo(() => (Array.isArray(queryParamDefs) ? queryParamDefs : []), [queryParamDefs]);
+  const [paramValues, setParamValues] = useState<Record<string, string>>({});
+  const lastGlobalRef = useRef<Record<string, string | number | boolean | undefined> | null>(null);
+
+  useEffect(() => {
+    // 初期値: default or globalParams を注入（既存入力は尊重）
+    setParamValues((current) => {
+      const next = { ...current };
+      for (const d of defs) {
+        if (!d?.name) continue;
+        if (next[d.name] !== undefined && next[d.name].length > 0) continue;
+
+        const gp = globalParams?.[d.name];
+        if (gp !== undefined && gp !== null && String(gp).length > 0) {
+          next[d.name] = String(gp);
+          continue;
+        }
+        if (d.default !== undefined) {
+          next[d.name] = String(d.default);
+          continue;
+        }
+        if (next[d.name] === undefined) next[d.name] = "";
+      }
+      return next;
+    });
+  }, [defs, globalParams]);
+
+  useEffect(() => {
+    lastGlobalRef.current = globalParams ?? null;
+  }, [globalParams]);
+
+  const execParams = useMemo(() => {
+    const params: Record<string, unknown> = {};
+    for (const d of defs) {
+      const raw = paramValues[d.name] ?? "";
+      const value = coerceValue(d, raw);
+      if (value === undefined) continue;
+      params[d.name] = value;
+    }
+    return params;
+  }, [defs, paramValues]);
 
   useEffect(() => {
     const load = async () => {
@@ -82,7 +136,7 @@ export function WidgetRenderer({ widget, from, to }: Props) {
       setError(null);
 
       try {
-        const result = await executeQuery(token, widget.queryId, { from, to });
+        const result = await executeQuery(token, widget.queryId, execParams);
         setData(result);
       } catch (err) {
         const message = err instanceof Error ? err.message : "データの取得に失敗しました";
@@ -93,7 +147,7 @@ export function WidgetRenderer({ widget, from, to }: Props) {
     };
 
     load();
-  }, [widget.queryId, from, to]);
+  }, [widget.queryId, execParams]);
 
   return (
     <div className="px-3 py-3 text-sm text-zinc-700 dark:text-zinc-200">
@@ -108,6 +162,45 @@ export function WidgetRenderer({ widget, from, to }: Props) {
 
       {!isLoading && !error && data && data.rows.length > 0 && (
         <>
+          {defs.length > 0 && (
+            <div className="mb-3 grid grid-cols-1 gap-2 rounded-md border border-zinc-200 bg-zinc-50 p-2 text-xs dark:border-zinc-800 dark:bg-zinc-900/40 sm:grid-cols-2">
+              {defs.map((p) => {
+                const label = p.label?.trim().length ? p.label : p.name;
+                const value = paramValues[p.name] ?? "";
+                if (p.type === "boolean") {
+                  return (
+                    <label key={p.name} className="flex items-center justify-between gap-2">
+                      <span className="text-zinc-600 dark:text-zinc-300">{label}</span>
+                      <select
+                        value={value || "false"}
+                        onChange={(e) => setParamValues((cur) => ({ ...cur, [p.name]: e.target.value }))}
+                        className="w-full max-w-48 rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+                      >
+                        <option value="false">false</option>
+                        <option value="true">true</option>
+                      </select>
+                    </label>
+                  );
+                }
+
+                const inputType = p.type === "number" ? "number" : p.type === "date" ? "date" : "text";
+                return (
+                  <label key={p.name} className="flex items-center justify-between gap-2">
+                    <span className="text-zinc-600 dark:text-zinc-300">
+                      {label}{p.required ? " *" : ""}
+                    </span>
+                    <input
+                      type={inputType}
+                      value={value}
+                      onChange={(e) => setParamValues((cur) => ({ ...cur, [p.name]: e.target.value }))}
+                      className="w-full max-w-48 rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+                    />
+                  </label>
+                );
+              })}
+            </div>
+          )}
+
           {widget.type === "table" && (
             <TableChart columns={data.columns} rows={data.rows} />
           )}

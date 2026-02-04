@@ -811,7 +811,11 @@ export default function DashboardDetailPage() {
                       </label>
                     </div>
 
-                    <WidgetRenderer widget={w} from={from} to={to} />
+                    <WidgetRenderer
+                      widget={w}
+                      queryParamDefs={queries.find((q) => String(q.id) === String(w.queryId))?.paramDefs}
+                      globalParams={{ from, to }}
+                    />
                       </WidgetContainer>
                     </div>
                   ))}

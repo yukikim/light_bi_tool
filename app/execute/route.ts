@@ -15,17 +15,29 @@ export async function POST(req: NextRequest) {
   }
 
   const queryIdNum = Number(body.queryId);
+  const params = body.params ?? {};
 
   // モックデータパターン
   if (queryIdNum === 1) {
     // 日別売上推移
     const columns = ["date", "sales", "profit"];
-    const rows = [
+    let rows = [
       { date: "2025-01-01", sales: 120, profit: 30 },
       { date: "2025-01-02", sales: 180, profit: 55 },
       { date: "2025-01-03", sales: 90, profit: 10 },
       { date: "2025-01-04", sales: 200, profit: 70 },
     ];
+
+    const from = typeof params.from === "string" ? params.from : undefined;
+    const to = typeof params.to === "string" ? params.to : undefined;
+    if (from || to) {
+      rows = rows.filter((r) => {
+        const d = String(r.date);
+        if (from && d < from) return false;
+        if (to && d > to) return false;
+        return true;
+      });
+    }
     return NextResponse.json({ data: { columns, rows } }, { status: 200 });
   }
 

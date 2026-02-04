@@ -9,7 +9,17 @@ export type MockQuery = {
   name: string;
   sql: string;
   dataSourceId?: number;
-  parameters?: Record<string, unknown>;
+  paramDefs?: MockQueryParamDef[];
+};
+
+export type MockQueryParamType = "string" | "number" | "date" | "boolean";
+
+export type MockQueryParamDef = {
+  name: string;
+  label?: string;
+  type: MockQueryParamType;
+  required?: boolean;
+  default?: string | number | boolean;
 };
 
 export type MockWidgetType = "table" | "line" | "bar";
@@ -205,10 +215,14 @@ export function createQuery(name: string, sql: string): MockQuery {
   return query;
 }
 
-export function updateQuery(id: number, patch: Partial<Pick<MockQuery, "name" | "sql">>): MockQuery | undefined {
+export function updateQuery(
+  id: number,
+  patch: Partial<Pick<MockQuery, "name" | "sql" | "paramDefs">>,
+): MockQuery | undefined {
   const q = queries.find((x) => x.id === id);
   if (!q) return undefined;
   if (patch.name !== undefined) q.name = patch.name;
   if (patch.sql !== undefined) q.sql = patch.sql;
+  if (patch.paramDefs !== undefined) q.paramDefs = patch.paramDefs;
   return q;
 }

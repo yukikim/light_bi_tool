@@ -35,7 +35,19 @@ export async function PUT(req: NextRequest, context: { params: Promise<{ id: str
     );
   }
 
-  const body = (await req.json().catch(() => null)) as { name?: string; sql?: string } | null;
+  const body = (await req.json().catch(() => null)) as
+    | {
+        name?: string;
+        sql?: string;
+        paramDefs?: Array<{
+          name: string;
+          label?: string;
+          type: "string" | "number" | "date" | "boolean";
+          required?: boolean;
+          default?: string | number | boolean;
+        }>;
+      }
+    | null;
 
   if (!body?.name || !body?.sql) {
     return NextResponse.json(
@@ -44,7 +56,37 @@ export async function PUT(req: NextRequest, context: { params: Promise<{ id: str
     );
   }
 
-  const updated = updateQuery(id, { name: body.name, sql: body.sql });
+  const paramDefs = body.paramDefs;
+  if (paramDefs !== undefined) {
+    if (!Array.isArray(paramDefs) || paramDefs.length > 50) {
+      return NextResponse.json(
+        { error: { code: "BAD_REQUEST", message: "paramDefs が不正です" } },
+        { status: 400 },
+      );
+    }
+    for (const p of paramDefs) {
+      if (!p || typeof p !== "object") {
+        return NextResponse.json(
+          { error: { code: "BAD_REQUEST", message: "paramDefs が不正です" } },
+          { status: 400 },
+        );
+      }
+      if (!p.name || typeof p.name !== "string") {
+        return NextResponse.json(
+          { error: { code: "BAD_REQUEST", message: "paramDefs.name は必須です" } },
+          { status: 400 },
+        );
+      }
+      if (!p.type || typeof p.type !== "string") {
+        return NextResponse.json(
+          { error: { code: "BAD_REQUEST", message: "paramDefs.type は必須です" } },
+          { status: 400 },
+        );
+      }
+    }
+  }
+
+  const updated = updateQuery(id, { name: body.name, sql: body.sql, ...(paramDefs !== undefined ? { paramDefs } : {}) });
 
   if (!updated) {
     return NextResponse.json(

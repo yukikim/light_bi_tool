@@ -833,3 +833,31 @@ Ran terminal command:  npm run dev
 ### 動作確認
 
 - `npm run build` 成功
+
+---
+
+## 2026-02-04 クエリの実行パラメータ定義 → Widget側で入力/UI反映
+
+### 追加したもの
+
+- クエリ型に `paramDefs`（パラメータ定義）を追加
+  - [lib/apiClient.ts](lib/apiClient.ts)
+  - [lib/mockData.ts](lib/mockData.ts)
+- クエリ更新APIで `paramDefs` を保存できるように拡張
+  - [app/api/queries/[id]/route.ts](app/api/queries/%5Bid%5D/route.ts)
+- [app/queries/[id]/page.tsx](app/queries/%5Bid%5D/page.tsx)
+  - 「実行パラメータ定義」UIを追加（name/label/type/default/required）
+  - `from/to` テンプレ追加ボタン
+  - テスト実行時に入力値を `executeQuery(params)` に渡す
+- [app/dashboard/[id]/page.tsx](app/dashboard/%5Bid%5D/page.tsx)
+  - 各Widgetの `queryId` に対応するクエリの `paramDefs` を `WidgetRenderer` に渡す
+  - 既存の上部 `from/to` は `globalParams` としても渡し、初期値として利用できるようにした
+- [app/components/widgets/WidgetRenderer.tsx](app/components/widgets/WidgetRenderer.tsx)
+  - `paramDefs` に基づいてWidget内に入力UIを表示
+  - 入力値を `executeQuery` の `params` に渡して再実行
+- [app/execute/route.ts](app/execute/route.ts)
+  - queryId=1 のモックで `params.from/to` による日付フィルタを追加（反映確認がしやすい）
+
+### 動作確認
+
+- `npm run build` 成功
