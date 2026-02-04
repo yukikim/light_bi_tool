@@ -773,3 +773,63 @@ Ran terminal command:  npm run dev
 
 - 編集パネルに「テンプレ」ボタンを追加（typeに応じて `xKey/yKeys` の雛形を挿入）
 - type変更時、config未入力なら自動でテンプレを入れる（既に入力がある場合は保持）
+
+---
+
+## 2026-02-04 Widget の配置（ドラッグ/リサイズ）＋バッチ保存
+
+### 追加したもの
+
+- `react-grid-layout` / `react-resizable` を導入
+- [app/globals.css](app/globals.css) に外部CSSを取り込み
+  - `@import "react-grid-layout/css/styles.css";`
+  - `@import "react-resizable/css/styles.css";`
+- [app/dashboard/[id]/page.tsx](app/dashboard/%5Bid%5D/page.tsx) のWidget一覧を `ResponsiveGridLayout` 表示に置換
+  - `.widget-drag-handle` をドラッグハンドルにして、フォーム操作と衝突しないよう `dragConfig.cancel` を設定
+
+### 保存方式（バッチ）
+
+- `onLayoutChange` でレイアウト変更を受け取り、600ms デバウンスして差分のみ保存
+- 保存は `PUT /widgets/{id}` をWidgetごとにまとめて並列実行（`Promise.allSettled`）
+  - 失敗が混じっても、成功したWidgetは反映される
+- 削除後はサーバ側の自動整列（compact）を反映するため widgets を再取得
+
+### 動作確認
+
+- `npm run build` 成功
+
+---
+
+## 2026-02-04 WidgetRenderer の可視化改善（複数系列・軸指定・表示設定）
+
+### 目的
+
+- `line` / `bar` の可視化を「1系列固定」から拡張し、複数系列・左右Y軸・表示設定（凡例/グリッド/ツールチップ/数値フォーマット）を扱えるようにする
+
+### 追加したもの
+
+- `recharts` を導入（軽量に複数系列/軸を実現）
+- [app/components/widgets/WidgetRenderer.tsx](app/components/widgets/WidgetRenderer.tsx)
+  - `config` を解釈して `series` / `options` を組み立て、チャートへ渡す
+  - 互換性: 既存の `yKeys`（や `yKey`）も `series` に変換して動く
+- [app/components/charts/LineChart.tsx](app/components/charts/LineChart.tsx) / [app/components/charts/BarChart.tsx](app/components/charts/BarChart.tsx)
+  - Recharts ベースに刷新
+  - `series: [{ yKey, label?, color?, axis?: left|right }]` に対応
+  - `options: { stacked?, showLegend?, showGrid?, showTooltip?, numberFormat? }` に対応
+
+### config 例
+
+- line:
+  - `xKey`: X軸のキー
+  - `series`: 複数系列（`axis` で左右Y軸）
+  - `options`: 表示設定
+
+### モックデータ調整
+
+- [app/execute/route.ts](app/execute/route.ts)
+  - queryId=1 に `profit` を追加（sales/profit の2系列）
+  - queryId=2 に `orders` を追加（sales/orders の2系列）
+
+### 動作確認
+
+- `npm run build` 成功

@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
+import type { Layout, LayoutItem } from "react-grid-layout";
+import { ResponsiveGridLayout, useContainerWidth } from "react-grid-layout";
 import {
   fetchDashboard,
   fetchWidgets,
@@ -21,6 +23,11 @@ import { WidgetRenderer } from "@/app/components/widgets/WidgetRenderer";
 export default function DashboardDetailPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
+  const { width: gridWidth, containerRef: gridContainerRef, mounted: gridMounted } = useContainerWidth();
+  const widgetsRef = useRef<Widget[]>([]);
+  const pendingLayoutRef = useRef<Layout | null>(null);
+  const layoutSaveTimerRef = useRef<number | null>(null);
+  const flushingLayoutRef = useRef(false);
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [widgets, setWidgets] = useState<Widget[]>([]);
@@ -30,6 +37,8 @@ export default function DashboardDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [savingWidgetIds, setSavingWidgetIds] = useState<Set<string>>(new Set());
+  const [layoutDirty, setLayoutDirty] = useState(false);
+  const [isFlushingLayout, setIsFlushingLayout] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createName, setCreateName] = useState<string>("");
   const [createType, setCreateType] = useState<WidgetType>("table");
@@ -45,10 +54,32 @@ export default function DashboardDetailPage() {
 
   const getConfigTemplateText = (type: WidgetType): string => {
     if (type === "line") {
-      return JSON.stringify({ xKey: "date", yKeys: ["sales"] }, null, 2);
+      return JSON.stringify(
+        {
+          xKey: "date",
+          series: [
+            { yKey: "sales", label: "売上", axis: "left" },
+            { yKey: "profit", label: "利益", axis: "right" },
+          ],
+          options: { showLegend: true, showGrid: true, showTooltip: true, numberFormat: "comma" },
+        },
+        null,
+        2,
+      );
     }
     if (type === "bar") {
-      return JSON.stringify({ xKey: "category", yKeys: ["sales"] }, null, 2);
+      return JSON.stringify(
+        {
+          xKey: "category",
+          series: [
+            { yKey: "sales", label: "売上", axis: "left" },
+            { yKey: "orders", label: "注文件数", axis: "right" },
+          ],
+          options: { stacked: false, showLegend: true, showGrid: true, showTooltip: true, numberFormat: "comma" },
+        },
+        null,
+        2,
+      );
     }
     // table: 基本は未指定でもOK（将来拡張用に空オブジェクト）
     return "{}";
@@ -71,6 +102,10 @@ export default function DashboardDetailPage() {
     }
     setCreateConfigText(getConfigTemplateText(type));
   };
+
+  useEffect(() => {
+    widgetsRef.current = widgets;
+  }, [widgets]);
 
   useEffect(() => {
     const load = async () => {
@@ -103,6 +138,15 @@ export default function DashboardDetailPage() {
 
     load();
   }, [router, params.id]);
+
+  useEffect(() => {
+    return () => {
+      if (layoutSaveTimerRef.current !== null) {
+        window.clearTimeout(layoutSaveTimerRef.current);
+        layoutSaveTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const handleApplyFilter = () => {
     // 今はまだ実際の再フェッチまでは行わず、後でExecute API実装時に連動させる
@@ -227,7 +271,9 @@ export default function DashboardDetailPage() {
 
     try {
       await deleteWidgetApi(token, widget.id);
-      setWidgets((current) => current.filter((w) => String(w.id) !== widgetIdStr));
+      // サーバ側で自動整列(compact)されるので、削除後は再取得して座標を揃える
+      const ws = await fetchWidgets(token, params.id);
+      setWidgets(ws);
     } catch (err) {
       const message = err instanceof Error ? err.message : "ウィジェットの削除に失敗しました";
       setError(message);
@@ -317,6 +363,130 @@ export default function DashboardDetailPage() {
     }
   };
 
+  const buildLayout = (): Layout => {
+    return widgets.map((w) => {
+      const x = Number((w.positionX ?? 0) as number);
+      const y = Number((w.positionY ?? 0) as number);
+      const width = Number((w.width ?? 4) as number);
+      const height = Number((w.height ?? 3) as number);
+      return {
+        i: String(w.id),
+        x: Number.isFinite(x) ? x : 0,
+        y: Number.isFinite(y) ? y : 0,
+        w: Number.isFinite(width) ? width : 4,
+        h: Number.isFinite(height) ? height : 3,
+      };
+    });
+  };
+
+  const flushLayoutSave = async () => {
+    if (flushingLayoutRef.current) return;
+
+    const token = typeof window !== "undefined" ? window.localStorage.getItem("lightbi_token") : null;
+    if (!token) {
+      router.replace("/login");
+      return;
+    }
+
+    const layout = pendingLayoutRef.current;
+    if (!layout) return;
+
+    pendingLayoutRef.current = null;
+    flushingLayoutRef.current = true;
+    setIsFlushingLayout(true);
+
+    const currentWidgets = widgetsRef.current;
+    const updates: Array<{ widgetId: string; next: LayoutItem }> = [];
+    for (const item of layout) {
+      const widgetId = String(item.i);
+      const w = currentWidgets.find((x) => String(x.id) === widgetId);
+      if (!w) continue;
+
+      const curX = Number((w.positionX ?? 0) as number);
+      const curY = Number((w.positionY ?? 0) as number);
+      const curW = Number((w.width ?? 4) as number);
+      const curH = Number((w.height ?? 3) as number);
+
+      if (curX === item.x && curY === item.y && curW === item.w && curH === item.h) continue;
+      updates.push({ widgetId, next: item });
+    }
+
+    if (updates.length === 0) {
+      flushingLayoutRef.current = false;
+      setIsFlushingLayout(false);
+      setLayoutDirty(pendingLayoutRef.current !== null);
+      return;
+    }
+
+    setSavingWidgetIds((prev) => {
+      const next = new Set(prev);
+      for (const u of updates) next.add(u.widgetId);
+      return next;
+    });
+
+    try {
+      const results = await Promise.allSettled(
+        updates.map((u) =>
+          updateWidgetApi(token, u.widgetId, {
+            positionX: u.next.x,
+            positionY: u.next.y,
+            width: u.next.w,
+            height: u.next.h,
+          }),
+        ),
+      );
+
+      const updatedById = new Map<string, Widget>();
+      const errors: string[] = [];
+      results.forEach((r, idx) => {
+        const id = updates[idx]?.widgetId;
+        if (!id) return;
+        if (r.status === "fulfilled") {
+          updatedById.set(id, r.value);
+        } else {
+          errors.push(r.reason instanceof Error ? r.reason.message : "レイアウトの保存に失敗しました");
+        }
+      });
+
+      if (updatedById.size > 0) {
+        setWidgets((current) =>
+          current.map((w) => {
+            const id = String(w.id);
+            return updatedById.get(id) ?? w;
+          }),
+        );
+      }
+
+      if (errors.length > 0) {
+        setError(errors[0]);
+      }
+    } finally {
+      setSavingWidgetIds((prev) => {
+        const next = new Set(prev);
+        for (const u of updates) next.delete(u.widgetId);
+        return next;
+      });
+      flushingLayoutRef.current = false;
+      setIsFlushingLayout(false);
+      setLayoutDirty(pendingLayoutRef.current !== null);
+      if (pendingLayoutRef.current) {
+        void flushLayoutSave();
+      }
+    }
+  };
+
+  const queueLayoutSave = (layout: Layout) => {
+    pendingLayoutRef.current = layout;
+    setLayoutDirty(true);
+    if (layoutSaveTimerRef.current !== null) {
+      window.clearTimeout(layoutSaveTimerRef.current);
+    }
+    layoutSaveTimerRef.current = window.setTimeout(() => {
+      layoutSaveTimerRef.current = null;
+      void flushLayoutSave();
+    }, 600);
+  };
+
   if (!isAuthorized && isLoading) {
     return null;
   }
@@ -331,6 +501,21 @@ export default function DashboardDetailPage() {
             </h1>
           </div>
           <div className="flex flex-wrap items-end gap-3">
+            <div
+              aria-live="polite"
+              className="rounded-md border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-700 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200"
+              title="ドラッグ/リサイズ後の保存状況"
+            >
+              {isFlushingLayout || savingWidgetIds.size > 0 ? (
+                <span className="text-zinc-900 dark:text-zinc-50">
+                  保存中...{savingWidgetIds.size > 0 ? ` (${savingWidgetIds.size})` : ""}
+                </span>
+              ) : layoutDirty ? (
+                <span className="text-amber-700 dark:text-amber-400">保存待ち...</span>
+              ) : (
+                <span className="text-zinc-500 dark:text-zinc-400">保存済み</span>
+              )}
+            </div>
             <div className="flex flex-col text-xs text-zinc-600 dark:text-zinc-300">
               <span className="mb-1">期間（from/to）</span>
               <div className="flex gap-2">
@@ -477,129 +662,165 @@ export default function DashboardDetailPage() {
         )}
 
         {!isLoading && !error && (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {widgets.map((w) => (
-              <WidgetContainer key={w.id}>
-                <WidgetHeader
-                  title={w.name ?? `Widget ${w.id}`}
-                  onEdit={() => openEditWidget(w)}
-                  onDelete={() => handleDeleteWidget(w)}
-                />
+          <div>
+            <div ref={gridContainerRef}>
+              {gridMounted && (
+                <ResponsiveGridLayout
+                  width={gridWidth}
+                  className="layout"
+                  layouts={{
+                    lg: buildLayout(),
+                    md: buildLayout(),
+                    sm: buildLayout(),
+                    xs: buildLayout(),
+                    xxs: buildLayout(),
+                  }}
+                  cols={{ lg: 12, md: 12, sm: 12, xs: 12, xxs: 12 }}
+                  breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
+                  rowHeight={72}
+                  margin={[16, 16]}
+                  containerPadding={[0, 0]}
+                  dragConfig={{
+                    enabled: true,
+                    bounded: false,
+                    handle: ".widget-drag-handle",
+                    cancel: "button, a, input, textarea, select",
+                    threshold: 3,
+                  }}
+                  resizeConfig={{ enabled: true }}
+                  onLayoutChange={(layout) => {
+                    queueLayoutSave(layout);
+                  }}
+                >
+                  {widgets.map((w) => (
+                    <div key={String(w.id)}>
+                      <WidgetContainer>
+                        <div className="widget-drag-handle">
+                          <WidgetHeader
+                            title={w.name ?? `Widget ${w.id}`}
+                            onEdit={() => openEditWidget(w)}
+                            onDelete={() => handleDeleteWidget(w)}
+                          />
+                        </div>
 
-                {editingWidgetId === String(w.id) && (
-                  <div className="border-b border-zinc-200 bg-white px-3 py-3 text-xs text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200">
-                    <div className="grid grid-cols-1 gap-3">
-                      <div>
-                        <label className="mb-1 block text-xs text-zinc-600 dark:text-zinc-300">名前</label>
-                        <input
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
-                          className="w-full rounded-md border border-zinc-300 bg-white px-2 py-2 text-sm text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
-                        />
-                      </div>
+                    {editingWidgetId === String(w.id) && (
+                      <div className="border-b border-zinc-200 bg-white px-3 py-3 text-xs text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200">
+                        <div className="grid grid-cols-1 gap-3">
+                          <div>
+                            <label className="mb-1 block text-xs text-zinc-600 dark:text-zinc-300">名前</label>
+                            <input
+                              value={editName}
+                              onChange={(e) => setEditName(e.target.value)}
+                              className="w-full rounded-md border border-zinc-300 bg-white px-2 py-2 text-sm text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+                            />
+                          </div>
 
-                      <div>
-                        <label className="mb-1 block text-xs text-zinc-600 dark:text-zinc-300">タイプ</label>
-                        <select
-                          value={editType}
-                          onChange={(e) => {
-                            const nextType = e.target.value as WidgetType;
-                            setEditType(nextType);
-                            // configが未入力のときだけ、タイプに応じたテンプレを自動入力
-                            if (editConfigText.trim().length === 0) {
-                              setEditConfigText(getConfigTemplateText(nextType));
-                            }
-                          }}
-                          className="w-full rounded-md border border-zinc-300 bg-white px-2 py-2 text-sm text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
-                        >
-                          <option value="table">table</option>
-                          <option value="bar">bar</option>
-                          <option value="line">line</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <div className="mb-1 flex items-center justify-between gap-2">
-                          <label className="block text-xs text-zinc-600 dark:text-zinc-300">config（JSON）</label>
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => applyConfigTemplate(editType)}
-                              className="rounded bg-zinc-100 px-2 py-1 text-[11px] text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                          <div>
+                            <label className="mb-1 block text-xs text-zinc-600 dark:text-zinc-300">タイプ</label>
+                            <select
+                              value={editType}
+                              onChange={(e) => {
+                                const nextType = e.target.value as WidgetType;
+                                setEditType(nextType);
+                                // configが未入力のときだけ、タイプに応じたテンプレを自動入力
+                                if (editConfigText.trim().length === 0) {
+                                  setEditConfigText(getConfigTemplateText(nextType));
+                                }
+                              }}
+                              className="w-full rounded-md border border-zinc-300 bg-white px-2 py-2 text-sm text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
                             >
-                              テンプレ
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setEditConfigText("{}")}
-                              className="rounded bg-zinc-100 px-2 py-1 text-[11px] text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
-                            >
-                              空オブジェクト
-                            </button>
+                              <option value="table">table</option>
+                              <option value="bar">bar</option>
+                              <option value="line">line</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <div className="mb-1 flex items-center justify-between gap-2">
+                              <label className="block text-xs text-zinc-600 dark:text-zinc-300">config（JSON）</label>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => applyConfigTemplate(editType)}
+                                  className="rounded bg-zinc-100 px-2 py-1 text-[11px] text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                                >
+                                  テンプレ
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setEditConfigText("{}")}
+                                  className="rounded bg-zinc-100 px-2 py-1 text-[11px] text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                                >
+                                  空オブジェクト
+                                </button>
+                              </div>
+                            </div>
+                            <textarea
+                              value={editConfigText}
+                              onChange={(e) => setEditConfigText(e.target.value)}
+                              rows={6}
+                              className="w-full rounded-md border border-zinc-300 bg-white px-2 py-2 font-mono text-xs text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+                              placeholder='例: {"xKey":"date","yKeys":["sales"]}'
+                            />
+                            <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                              未入力の場合は config を変更しません。
+                            </p>
                           </div>
                         </div>
-                        <textarea
-                          value={editConfigText}
-                          onChange={(e) => setEditConfigText(e.target.value)}
-                          rows={6}
-                          className="w-full rounded-md border border-zinc-300 bg-white px-2 py-2 font-mono text-xs text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
-                          placeholder='例: {"xKey":"date","yKeys":["sales"]}'
-                        />
-                        <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
-                          未入力の場合は config を変更しません。
-                        </p>
-                      </div>
-                    </div>
 
-                    {editError && (
-                      <p className="mt-2 text-xs text-red-600 dark:text-red-400">{editError}</p>
+                        {editError && (
+                          <p className="mt-2 text-xs text-red-600 dark:text-red-400">{editError}</p>
+                        )}
+
+                        <div className="mt-3 flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={closeEditWidget}
+                            className="rounded-md px-3 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-900"
+                          >
+                            閉じる
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleSaveWidgetEdit}
+                            disabled={savingWidgetIds.has(String(w.id))}
+                            className="rounded-md bg-zinc-900 px-3 py-2 text-xs font-medium text-white hover:bg-zinc-800 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+                          >
+                            {savingWidgetIds.has(String(w.id)) ? "保存中..." : "保存"}
+                          </button>
+                        </div>
+                      </div>
                     )}
 
-                    <div className="mt-3 flex items-center justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={closeEditWidget}
-                        className="rounded-md px-3 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-900"
-                      >
-                        閉じる
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleSaveWidgetEdit}
-                        disabled={savingWidgetIds.has(String(w.id))}
-                        className="rounded-md bg-zinc-900 px-3 py-2 text-xs font-medium text-white hover:bg-zinc-800 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
-                      >
-                        {savingWidgetIds.has(String(w.id)) ? "保存中..." : "保存"}
-                      </button>
+                    <div className="border-b border-zinc-200 px-3 py-2 text-xs text-zinc-700 dark:border-zinc-800 dark:text-zinc-200">
+                      <label className="flex items-center justify-between gap-2">
+                        <span className="shrink-0 text-zinc-600 dark:text-zinc-300">クエリ</span>
+                        <select
+                          className="w-full max-w-55 rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+                          value={String(w.queryId)}
+                          onChange={(e) => handleChangeWidgetQuery(w.id, e.target.value)}
+                          disabled={savingWidgetIds.has(String(w.id)) || queries.length === 0}
+                        >
+                          {queries.length === 0 && <option value={String(w.queryId)}>（クエリなし）</option>}
+                          {queries.map((q) => (
+                            <option key={q.id} value={String(q.id)}>
+                              {q.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
                     </div>
-                  </div>
-                )}
 
-                <div className="border-b border-zinc-200 px-3 py-2 text-xs text-zinc-700 dark:border-zinc-800 dark:text-zinc-200">
-                  <label className="flex items-center justify-between gap-2">
-                    <span className="shrink-0 text-zinc-600 dark:text-zinc-300">クエリ</span>
-                    <select
-                      className="w-full max-w-[220px] rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
-                      value={String(w.queryId)}
-                      onChange={(e) => handleChangeWidgetQuery(w.id, e.target.value)}
-                      disabled={savingWidgetIds.has(String(w.id)) || queries.length === 0}
-                    >
-                      {queries.length === 0 && <option value={String(w.queryId)}>（クエリなし）</option>}
-                      {queries.map((q) => (
-                        <option key={q.id} value={String(q.id)}>
-                          {q.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-
-                <WidgetRenderer widget={w} from={from} to={to} />
-              </WidgetContainer>
-            ))}
+                    <WidgetRenderer widget={w} from={from} to={to} />
+                      </WidgetContainer>
+                    </div>
+                  ))}
+                </ResponsiveGridLayout>
+              )}
+            </div>
 
             {widgets.length === 0 && (
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
                 このダッシュボードにはまだウィジェットがありません。
               </p>
             )}
