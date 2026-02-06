@@ -14,17 +14,32 @@ function createToken(email: string): string {
 
 export async function POST(req: NextRequest) {
   if (BACKEND_API_BASE_URL) {
-    const upstream = await fetch(`${BACKEND_API_BASE_URL}/auth/login`, {
-      method: "POST",
-      headers: {
-        "Content-Type": req.headers.get("content-type") ?? "application/json",
-      },
-      body: await req.text(),
-    });
+    try {
+      const upstream = await fetch(`${BACKEND_API_BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": req.headers.get("content-type") ?? "application/json",
+        },
+        body: await req.text(),
+      });
 
-    const contentType = upstream.headers.get("content-type") ?? "application/json";
-    const bodyText = await upstream.text();
-    return new NextResponse(bodyText, { status: upstream.status, headers: { "Content-Type": contentType } });
+      const contentType = upstream.headers.get("content-type") ?? "application/json";
+      const bodyText = await upstream.text();
+      return new NextResponse(bodyText, { status: upstream.status, headers: { "Content-Type": contentType } });
+    } catch (error) {
+      console.error("/auth/login proxy error", error);
+      return NextResponse.json(
+        {
+          error: {
+            code: "UPSTREAM_UNREACHABLE",
+            message:
+              `バックエンドAPIに接続できません (${BACKEND_API_BASE_URL}). ` +
+              "backend を起動してから再試行してください。",
+          },
+        },
+        { status: 502 },
+      );
+    }
   }
 
   try {
