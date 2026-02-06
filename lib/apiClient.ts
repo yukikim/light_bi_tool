@@ -54,6 +54,14 @@ export type ExecuteResult = {
   rows: Record<string, unknown>[];
 };
 
+export type CsvUploadResponse = {
+  schema: string;
+  table: string;
+  queryId: number;
+  dashboardId: number;
+  widgetId: number;
+};
+
 function getBaseUrl() {
   if (!API_BASE_URL) {
     throw new Error("API base URL is not configured (NEXT_PUBLIC_API_BASE_URL)");
@@ -108,6 +116,30 @@ export async function register(email: string, password: string): Promise<Registe
   // backend: { data: { id, email } }
   // dev fallback: { token }
   return (json ?? {}) as RegisterResponse;
+}
+
+export async function uploadCsv(token: string, file: File): Promise<CsvUploadResponse> {
+  const baseUrl = getBaseUrl();
+  const form = new FormData();
+  form.append("file", file);
+
+  const res = await fetch(`${baseUrl}/csv/upload`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: form,
+  });
+
+  const json = await res.json().catch(() => undefined);
+
+  if (!res.ok) {
+    const message = json?.error?.message ?? json?.message ?? "CSVアップロードに失敗しました";
+    throw new Error(message);
+  }
+
+  const data = json?.data ?? json;
+  return data as CsvUploadResponse;
 }
 
 export async function fetchDashboards(token: string): Promise<Dashboard[]> {

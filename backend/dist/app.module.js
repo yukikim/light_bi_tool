@@ -9,6 +9,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AppModule = void 0;
 const common_1 = require("@nestjs/common");
 const auth_module_1 = require("./auth/auth.module");
+const csv_module_1 = require("./csv/csv.module");
 const dashboards_module_1 = require("./dashboards/dashboards.module");
 const db_module_1 = require("./db/db.module");
 const execute_module_1 = require("./execute/execute.module");
@@ -21,7 +22,7 @@ let AppModule = class AppModule {
 exports.AppModule = AppModule;
 exports.AppModule = AppModule = __decorate([
     (0, common_1.Module)({
-        imports: [db_module_1.DbModule, auth_module_1.AuthModule, queries_module_1.QueriesModule, execute_module_1.ExecuteModule, dashboards_module_1.DashboardsModule, widgets_module_1.WidgetsModule],
+        imports: [db_module_1.DbModule, auth_module_1.AuthModule, queries_module_1.QueriesModule, execute_module_1.ExecuteModule, dashboards_module_1.DashboardsModule, widgets_module_1.WidgetsModule, csv_module_1.CsvModule],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],
     })

@@ -1,5 +1,7 @@
 -- Minimal schema for M1
 
+CREATE SCHEMA IF NOT EXISTS csv_schema;
+
 CREATE TABLE IF NOT EXISTS users (
   id BIGSERIAL PRIMARY KEY,
   email TEXT NOT NULL UNIQUE,

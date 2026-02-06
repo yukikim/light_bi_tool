@@ -6,6 +6,7 @@
     "dev": "next dev",
     "smoke:next": "node scripts/smoke_next.mjs",
     "smoke:next:dw": "node scripts/smoke_next_dash_widgets.mjs",
+    "smoke:next:csv": "node scripts/smoke_next_csv.mjs",
     "dev:backend": "npm --prefix backend run start:dev",
     "build:backend": "npm --prefix backend run build",
     "dev:db": "docker compose up -d db",

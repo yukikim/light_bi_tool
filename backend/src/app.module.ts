@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { AuthModule } from "./auth/auth.module";
+import { CsvModule } from "./csv/csv.module";
 import { DashboardsModule } from "./dashboards/dashboards.module";
 import { DbModule } from "./db/db.module";
 import { ExecuteModule } from "./execute/execute.module";
@@ -9,7 +10,7 @@ import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 
 @Module({
-  imports: [DbModule, AuthModule, QueriesModule, ExecuteModule, DashboardsModule, WidgetsModule],
+  imports: [DbModule, AuthModule, QueriesModule, ExecuteModule, DashboardsModule, WidgetsModule, CsvModule],
   controllers: [AppController],
   providers: [AppService],
 })
