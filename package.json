@@ -11,6 +11,7 @@
     "build:backend": "npm --prefix backend run build",
     "dev:db": "docker compose up -d db",
     "db:migrate": "cat backend/sql/migrate.sql | docker exec -i -e PGPASSWORD=lightbi lightbi_db psql -U lightbi -d lightbi",
+    "db:seed": "cat backend/sql/seed.sql | docker exec -i -e PGPASSWORD=lightbi lightbi_db psql -U lightbi -d lightbi",
     "down:db": "docker compose down",
     "build": "next build",
     "start": "next start",

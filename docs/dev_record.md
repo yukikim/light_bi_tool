@@ -735,6 +735,45 @@ Ran terminal command:  npm run dev
 
 ---
 
+## 2026-02-06 CSVアップロード「1機能」（M4）一気通貫
+
+### 目的
+
+- CSVをアップロードするだけで、DBにテーブル作成→サンプルQuery登録→Dashboard/Widget自動作成→画面遷移までの体験を成立させる
+
+### 実装したもの
+
+- DB
+  - `csv_schema` を追加（CSV取り込み用スキーマ）
+  - [backend/sql/schema.sql](backend/sql/schema.sql), [backend/sql/migrate.sql](backend/sql/migrate.sql)
+
+- Backend
+  - `POST /csv/upload`（multipart）を追加
+  - CSV解析→型推定→`csv_schema` にテーブル作成→INSERT投入
+  - 取り込みテーブルを参照するサンプルQueryを `queries` に作成
+  - サンプルDashboard/Widget（table）を自動作成し、`dashboardId/widgetId/queryId` を返却
+  - [backend/src/csv/csv.controller.ts](backend/src/csv/csv.controller.ts)
+  - [backend/src/csv/csv.service.ts](backend/src/csv/csv.service.ts)
+
+- Next.js
+  - `/csv` 画面を追加（ファイル選択・簡易プレビュー・アップロード・成功時に `/dashboard/[id]` へ遷移）
+  - `/csv/upload` をbackendへプロキシする Route Handler を追加
+  - [app/csv/page.tsx](app/csv/page.tsx)
+  - [app/csv/upload/route.ts](app/csv/upload/route.ts)
+
+- スモーク
+  - Next proxy経由で `register/login → csv upload → widget存在 → execute結果` まで確認するスクリプトを追加
+  - [scripts/smoke_next_csv.mjs](scripts/smoke_next_csv.mjs)
+
+### 動作確認
+
+- 自動:
+  - `NEXT_BASE_URL=http://localhost:3000 npm run smoke:next:csv` → OK
+- 手動:
+  - `/csv` からCSVをアップロードし、`/dashboard/[id]` に遷移後、Widgetのテーブル表示まで確認（OK）
+
+---
+
 ## 2026-02-04: M1（Backend/DB本実装）着手
 
 ### 追加したもの
