@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createWidget, getWidgetsByDashboardId } from "@/lib/mockData";
+import { randomUUID } from "crypto";
 
 const BACKEND_API_BASE_URL = process.env.BACKEND_API_BASE_URL;
 
 async function proxyToBackend(req: NextRequest) {
   const authorization = req.headers.get("authorization") ?? "";
+  const requestId = req.headers.get("x-request-id") ?? randomUUID();
   const url = new URL(req.url);
   const upstreamUrl = new URL(`${BACKEND_API_BASE_URL}/widgets`);
   url.searchParams.forEach((value, key) => upstreamUrl.searchParams.set(key, value));
@@ -14,13 +16,18 @@ async function proxyToBackend(req: NextRequest) {
     headers: {
       "Content-Type": req.headers.get("content-type") ?? "application/json",
       ...(authorization ? { Authorization: authorization } : {}),
+      "x-request-id": requestId,
     },
     body: req.method === "GET" ? undefined : await req.text(),
   });
 
   const contentType = upstream.headers.get("content-type") ?? "application/json";
   const bodyText = await upstream.text();
-  return new NextResponse(bodyText, { status: upstream.status, headers: { "Content-Type": contentType } });
+  const upstreamRequestId = upstream.headers.get("x-request-id") ?? requestId;
+  return new NextResponse(bodyText, {
+    status: upstream.status,
+    headers: { "Content-Type": contentType, "x-request-id": upstreamRequestId },
+  });
 }
 
 export async function GET(req: NextRequest) {

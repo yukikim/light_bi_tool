@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomUUID } from "crypto";
 
 const BACKEND_API_BASE_URL = process.env.BACKEND_API_BASE_URL;
 
@@ -13,17 +14,23 @@ function createToken(email: string): string {
 export async function POST(req: NextRequest) {
   if (BACKEND_API_BASE_URL) {
     try {
+      const requestId = req.headers.get("x-request-id") ?? randomUUID();
       const upstream = await fetch(`${BACKEND_API_BASE_URL}/auth/register`, {
         method: "POST",
         headers: {
           "Content-Type": req.headers.get("content-type") ?? "application/json",
+          "x-request-id": requestId,
         },
         body: await req.text(),
       });
 
       const contentType = upstream.headers.get("content-type") ?? "application/json";
       const bodyText = await upstream.text();
-      return new NextResponse(bodyText, { status: upstream.status, headers: { "Content-Type": contentType } });
+      const upstreamRequestId = upstream.headers.get("x-request-id") ?? requestId;
+      return new NextResponse(bodyText, {
+        status: upstream.status,
+        headers: { "Content-Type": contentType, "x-request-id": upstreamRequestId },
+      });
     } catch (error) {
       console.error("/auth/register proxy error", error);
       return NextResponse.json(
@@ -67,7 +74,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("/auth/register error", error);
     return NextResponse.json(
-      { error: { code: "INTERNAL_ERROR", message: "登録処理でエラーが発生しました" } },
+      { error: { code: "INTERNAL_SERVER_ERROR", message: "登録処理でエラーが発生しました" } },
       { status: 500 },
     );
   }

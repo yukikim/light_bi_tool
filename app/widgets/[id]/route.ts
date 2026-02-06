@@ -1,22 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { deleteWidget, updateWidget } from "@/lib/mockData";
+import { randomUUID } from "crypto";
 
 const BACKEND_API_BASE_URL = process.env.BACKEND_API_BASE_URL;
 
 async function proxyToBackend(req: NextRequest, id: string) {
   const authorization = req.headers.get("authorization") ?? "";
+  const requestId = req.headers.get("x-request-id") ?? randomUUID();
   const upstream = await fetch(`${BACKEND_API_BASE_URL}/widgets/${id}`, {
     method: req.method,
     headers: {
       "Content-Type": req.headers.get("content-type") ?? "application/json",
       ...(authorization ? { Authorization: authorization } : {}),
+      "x-request-id": requestId,
     },
     body: req.method === "GET" ? undefined : await req.text(),
   });
 
   const contentType = upstream.headers.get("content-type") ?? "application/json";
   const bodyText = await upstream.text();
-  return new NextResponse(bodyText, { status: upstream.status, headers: { "Content-Type": contentType } });
+  const upstreamRequestId = upstream.headers.get("x-request-id") ?? requestId;
+  return new NextResponse(bodyText, {
+    status: upstream.status,
+    headers: { "Content-Type": contentType, "x-request-id": upstreamRequestId },
+  });
 }
 
 export async function PUT(req: NextRequest, context: { params: Promise<{ id: string }> }) {
