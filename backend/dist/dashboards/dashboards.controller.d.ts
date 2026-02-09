@@ -11,4 +11,9 @@ export declare class DashboardsController {
     get(idParam: string): Promise<{
         data: import("./dashboards.service").DashboardDto;
     }>;
+    remove(idParam: string): Promise<{
+        data: {
+            id: number;
+        };
+    }>;
 }

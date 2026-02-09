@@ -12,4 +12,7 @@ export declare class DashboardsService {
     create(input: {
         name: string;
     }): Promise<DashboardDto>;
+    remove(id: number): Promise<{
+        id: number;
+    }>;
 }

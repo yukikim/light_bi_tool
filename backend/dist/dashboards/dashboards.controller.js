@@ -44,6 +44,13 @@ let DashboardsController = class DashboardsController {
         const data = await this.dashboards.getById(id);
         return { data };
     }
+    async remove(idParam) {
+        const id = Number(idParam);
+        if (!Number.isFinite(id))
+            throw new common_1.BadRequestException("id が不正です");
+        const data = await this.dashboards.remove(id);
+        return { data };
+    }
 };
 exports.DashboardsController = DashboardsController;
 __decorate([
@@ -66,6 +73,13 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], DashboardsController.prototype, "get", null);
+__decorate([
+    (0, common_1.Delete)(":id"),
+    __param(0, (0, common_1.Param)("id")),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], DashboardsController.prototype, "remove", null);
 exports.DashboardsController = DashboardsController = __decorate([
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Controller)("dashboards"),

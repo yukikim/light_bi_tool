@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Param, Post, UseGuards } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, Get, Param, Post, UseGuards } from "@nestjs/common";
 import { z } from "zod";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { DashboardsService } from "./dashboards.service";
@@ -33,6 +33,14 @@ export class DashboardsController {
     const id = Number(idParam);
     if (!Number.isFinite(id)) throw new BadRequestException("id が不正です");
     const data = await this.dashboards.getById(id);
+    return { data };
+  }
+
+  @Delete(":id")
+  async remove(@Param("id") idParam: string) {
+    const id = Number(idParam);
+    if (!Number.isFinite(id)) throw new BadRequestException("id が不正です");
+    const data = await this.dashboards.remove(id);
     return { data };
   }
 }

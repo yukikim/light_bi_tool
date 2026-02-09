@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDashboardById } from "@/lib/mockData";
+import { deleteDashboard, getDashboardById } from "@/lib/mockData";
 import { randomUUID } from "crypto";
 
 const BACKEND_API_BASE_URL = process.env.BACKEND_API_BASE_URL;
@@ -52,4 +52,30 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ id: st
   }
 
   return NextResponse.json({ data: dashboard }, { status: 200 });
+}
+
+export async function DELETE(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const { id: idParam } = await context.params;
+
+  if (BACKEND_API_BASE_URL) {
+    return proxyToBackend(req, idParam);
+  }
+
+  const id = Number(idParam);
+  if (Number.isNaN(id)) {
+    return NextResponse.json(
+      { error: { code: "BAD_REQUEST", message: "id が不正です" } },
+      { status: 400 },
+    );
+  }
+
+  const ok = deleteDashboard(id);
+  if (!ok) {
+    return NextResponse.json(
+      { error: { code: "NOT_FOUND", message: "ダッシュボードが見つかりません" } },
+      { status: 404 },
+    );
+  }
+
+  return NextResponse.json({ data: { id } }, { status: 200 });
 }

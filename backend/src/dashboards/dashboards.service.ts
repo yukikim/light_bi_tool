@@ -55,4 +55,17 @@ export class DashboardsService {
     );
     return mapDashboard(result.rows[0]!);
   }
+
+  async remove(id: number): Promise<{ id: number }> {
+    const result = await this.db.query<{ id: number }>(
+      `DELETE FROM dashboards
+       WHERE id = $1
+       RETURNING id`,
+      [id],
+    );
+
+    const row = result.rows[0];
+    if (!row) throw new NotFoundException("ダッシュボードが見つかりません");
+    return row;
+  }
 }

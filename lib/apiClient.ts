@@ -211,6 +211,31 @@ export async function fetchDashboard(token: string, id: string | number): Promis
   return data as Dashboard;
 }
 
+export async function deleteDashboard(token: string, id: string | number): Promise<{ id: number | string }> {
+  const baseUrl = getBaseUrl();
+
+  const res = await fetch(`${baseUrl}/dashboards/${id}`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const json = await res.json().catch(() => undefined);
+
+  if (!res.ok) {
+    const message = json?.error?.message ?? json?.message ?? "ダッシュボードの削除に失敗しました";
+    throw new Error(message);
+  }
+
+  const data = json?.data ?? json;
+  if (data?.id === undefined || data?.id === null) {
+    return { id };
+  }
+  return data as { id: number | string };
+}
+
 export async function fetchWidgets(token: string, dashboardId: string | number): Promise<Widget[]> {
   const baseUrl = getBaseUrl();
 

@@ -45,6 +45,15 @@ let DashboardsService = class DashboardsService {
        RETURNING id, name, created_at`, [input.name]);
         return mapDashboard(result.rows[0]);
     }
+    async remove(id) {
+        const result = await this.db.query(`DELETE FROM dashboards
+       WHERE id = $1
+       RETURNING id`, [id]);
+        const row = result.rows[0];
+        if (!row)
+            throw new common_1.NotFoundException("ダッシュボードが見つかりません");
+        return row;
+    }
 };
 exports.DashboardsService = DashboardsService;
 exports.DashboardsService = DashboardsService = __decorate([

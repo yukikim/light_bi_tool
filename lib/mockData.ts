@@ -107,6 +107,21 @@ export function getDashboardById(id: number): MockDashboard | undefined {
   return dashboards.find((d) => d.id === id);
 }
 
+export function deleteDashboard(id: number): boolean {
+  const index = dashboards.findIndex((d) => d.id === id);
+  if (index === -1) return false;
+
+  dashboards.splice(index, 1);
+
+  for (let i = widgets.length - 1; i >= 0; i--) {
+    if (widgets[i].dashboardId === id) {
+      widgets.splice(i, 1);
+    }
+  }
+
+  return true;
+}
+
 export function getWidgetsByDashboardId(dashboardId: number): MockWidget[] {
   return widgets.filter((w) => w.dashboardId === dashboardId);
 }
