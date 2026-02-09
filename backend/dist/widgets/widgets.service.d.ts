@@ -24,6 +24,10 @@ export declare class WidgetsService {
         name: string;
         type: WidgetType;
         config?: Record<string, unknown>;
+        positionX?: number;
+        positionY?: number;
+        width?: number;
+        height?: number;
     }): Promise<WidgetDto>;
     update(id: number, input: Partial<{
         queryId: number;

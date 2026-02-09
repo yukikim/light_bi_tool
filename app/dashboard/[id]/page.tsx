@@ -44,12 +44,16 @@ export default function DashboardDetailPage() {
   const [createType, setCreateType] = useState<WidgetType>("table");
   const [createQueryId, setCreateQueryId] = useState<string>("");
   const [createConfigText, setCreateConfigText] = useState<string>("");
+  const [createWidth, setCreateWidth] = useState<string>("4");
+  const [createHeight, setCreateHeight] = useState<string>("3");
   const [isCreating, setIsCreating] = useState(false);
 
   const [editingWidgetId, setEditingWidgetId] = useState<string | null>(null);
   const [editName, setEditName] = useState<string>("");
   const [editType, setEditType] = useState<WidgetType>("table");
   const [editConfigText, setEditConfigText] = useState<string>("");
+  const [editWidth, setEditWidth] = useState<string>("");
+  const [editHeight, setEditHeight] = useState<string>("");
   const [editError, setEditError] = useState<string | null>(null);
 
   const getConfigTemplateText = (type: WidgetType): string => {
@@ -189,6 +193,18 @@ export default function DashboardDetailPage() {
       }
     }
 
+    const widthNum = Number(createWidth);
+    if (!Number.isFinite(widthNum) || widthNum <= 0 || widthNum > 12) {
+      setError("幅（w）は 1〜12 の数値で入力してください");
+      return;
+    }
+
+    const heightNum = Number(createHeight);
+    if (!Number.isFinite(heightNum) || heightNum <= 0) {
+      setError("高さ（h）は 1以上の数値で入力してください");
+      return;
+    }
+
     setIsCreating(true);
     setError(null);
 
@@ -199,11 +215,15 @@ export default function DashboardDetailPage() {
         name,
         type: createType,
         ...(config !== undefined ? { config } : {}),
+        width: widthNum,
+        height: heightNum,
       });
 
       setWidgets((current) => [...current, created]);
       setCreateName("");
       setCreateConfigText("");
+      setCreateWidth("4");
+      setCreateHeight("3");
       setIsCreateOpen(false);
     } catch (err) {
       const message = err instanceof Error ? err.message : "ウィジェットの作成に失敗しました";
@@ -295,6 +315,8 @@ export default function DashboardDetailPage() {
     setEditConfigText(
       widget.config ? JSON.stringify(widget.config, null, 2) : "",
     );
+    setEditWidth(String(widget.width ?? 4));
+    setEditHeight(String(widget.height ?? 3));
   };
 
   const closeEditWidget = () => {
@@ -334,6 +356,18 @@ export default function DashboardDetailPage() {
       }
     }
 
+    const widthNum = Number(editWidth);
+    if (!Number.isFinite(widthNum) || widthNum <= 0 || widthNum > 12) {
+      setEditError("幅（w）は 1〜12 の数値で入力してください");
+      return;
+    }
+
+    const heightNum = Number(editHeight);
+    if (!Number.isFinite(heightNum) || heightNum <= 0) {
+      setEditError("高さ（h）は 1以上の数値で入力してください");
+      return;
+    }
+
     setEditError(null);
     setSavingWidgetIds((prev) => {
       const next = new Set(prev);
@@ -347,6 +381,8 @@ export default function DashboardDetailPage() {
         name,
         type: editType,
         ...(config !== undefined ? { config } : {}),
+        width: widthNum,
+        height: heightNum,
       };
       const updated = await updateWidgetApi(token, widgetId, payload);
       setWidgets((current) => current.map((w) => (String(w.id) === widgetId ? updated : w)));
@@ -600,6 +636,30 @@ export default function DashboardDetailPage() {
                   ))}
                 </select>
               </div>
+
+              <div>
+                <label className="mb-1 block text-xs text-zinc-600 dark:text-zinc-300">幅（w）</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={12}
+                  value={createWidth}
+                  onChange={(e) => setCreateWidth(e.target.value)}
+                  className="w-full rounded-md border border-zinc-300 bg-white px-2 py-2 text-sm text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+                  placeholder="1-12"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs text-zinc-600 dark:text-zinc-300">高さ（h）</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={createHeight}
+                  onChange={(e) => setCreateHeight(e.target.value)}
+                  className="w-full rounded-md border border-zinc-300 bg-white px-2 py-2 text-sm text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+                />
+              </div>
             </div>
 
             <div className="mt-3">
@@ -733,6 +793,31 @@ export default function DashboardDetailPage() {
                               <option value="bar">bar</option>
                               <option value="line">line</option>
                             </select>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="mb-1 block text-xs text-zinc-600 dark:text-zinc-300">幅（w）</label>
+                              <input
+                                type="number"
+                                min={1}
+                                max={12}
+                                value={editWidth}
+                                onChange={(e) => setEditWidth(e.target.value)}
+                                className="w-full rounded-md border border-zinc-300 bg-white px-2 py-2 text-sm text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+                                placeholder="1-12"
+                              />
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-xs text-zinc-600 dark:text-zinc-300">高さ（h）</label>
+                              <input
+                                type="number"
+                                min={1}
+                                value={editHeight}
+                                onChange={(e) => setEditHeight(e.target.value)}
+                                className="w-full rounded-md border border-zinc-300 bg-white px-2 py-2 text-sm text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+                              />
+                            </div>
                           </div>
 
                           <div>

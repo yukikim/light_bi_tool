@@ -68,6 +68,8 @@ export async function POST(req: NextRequest) {
         name?: string;
         type?: "table" | "line" | "bar";
         config?: Record<string, unknown>;
+        width?: number;
+        height?: number;
       }
     | null;
 
@@ -117,6 +119,8 @@ export async function POST(req: NextRequest) {
     name,
     type,
     config: body.config,
+    ...(body.width !== undefined ? { width: body.width } : {}),
+    ...(body.height !== undefined ? { height: body.height } : {}),
   });
 
   return NextResponse.json({ data: widget }, { status: 201 });

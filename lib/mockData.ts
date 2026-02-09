@@ -140,6 +140,10 @@ export function createWidget(input: {
   name: string;
   type: MockWidgetType;
   config?: Record<string, unknown>;
+  positionX?: number;
+  positionY?: number;
+  width?: number;
+  height?: number;
 }): MockWidget {
   // ざっくり配置: 既存Widget数に応じて左上から並べる
   const existing = getWidgetsByDashboardId(input.dashboardId);
@@ -152,10 +156,10 @@ export function createWidget(input: {
     name: input.name,
     type: input.type,
     config: input.config,
-    positionX: (index % 3) * 4,
-    positionY: Math.floor(index / 3) * 3,
-    width: 4,
-    height: 3,
+    positionX: input.positionX ?? (index % 3) * 4,
+    positionY: input.positionY ?? Math.floor(index / 3) * 3,
+    width: input.width ?? 4,
+    height: input.height ?? 3,
   };
 
   widgets.push(widget);

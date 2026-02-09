@@ -74,12 +74,26 @@ export class WidgetsService {
     name: string;
     type: WidgetType;
     config?: Record<string, unknown>;
+    positionX?: number;
+    positionY?: number;
+    width?: number;
+    height?: number;
   }): Promise<WidgetDto> {
     const result = await this.db.query<DbWidgetRow>(
-      `INSERT INTO widgets (dashboard_id, query_id, name, type, config)
-       VALUES ($1, $2, $3, $4, $5::jsonb)
+      `INSERT INTO widgets (dashboard_id, query_id, name, type, config, position_x, position_y, width, height)
+       VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9)
        RETURNING id, dashboard_id, query_id, name, type, config, position_x, position_y, width, height, created_at, updated_at`,
-      [input.dashboardId, input.queryId, input.name, input.type, JSON.stringify(input.config ?? {})],
+      [
+        input.dashboardId,
+        input.queryId,
+        input.name,
+        input.type,
+        JSON.stringify(input.config ?? {}),
+        input.positionX ?? 0,
+        input.positionY ?? 0,
+        input.width ?? 4,
+        input.height ?? 3,
+      ],
     );
 
     return mapWidget(result.rows[0]!);

@@ -20,6 +20,10 @@ const createSchema = z.object({
   name: z.string().min(1).max(200),
   type: z.enum(["table", "line", "bar"]),
   config: z.record(z.string(), z.unknown()).optional(),
+  positionX: z.number().int().optional(),
+  positionY: z.number().int().optional(),
+  width: z.number().int().positive().optional(),
+  height: z.number().int().positive().optional(),
 });
 
 const updateSchema = z
@@ -75,6 +79,10 @@ export class WidgetsController {
       name: parsed.data.name,
       type: parsed.data.type as WidgetType,
       config: parsed.data.config,
+      ...(parsed.data.positionX !== undefined ? { positionX: parsed.data.positionX } : {}),
+      ...(parsed.data.positionY !== undefined ? { positionY: parsed.data.positionY } : {}),
+      ...(parsed.data.width !== undefined ? { width: parsed.data.width } : {}),
+      ...(parsed.data.height !== undefined ? { height: parsed.data.height } : {}),
     });
     return { data };
   }

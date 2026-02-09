@@ -43,9 +43,19 @@ let WidgetsService = class WidgetsService {
         return result.rows.map(mapWidget);
     }
     async create(input) {
-        const result = await this.db.query(`INSERT INTO widgets (dashboard_id, query_id, name, type, config)
-       VALUES ($1, $2, $3, $4, $5::jsonb)
-       RETURNING id, dashboard_id, query_id, name, type, config, position_x, position_y, width, height, created_at, updated_at`, [input.dashboardId, input.queryId, input.name, input.type, JSON.stringify(input.config ?? {})]);
+        const result = await this.db.query(`INSERT INTO widgets (dashboard_id, query_id, name, type, config, position_x, position_y, width, height)
+       VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9)
+       RETURNING id, dashboard_id, query_id, name, type, config, position_x, position_y, width, height, created_at, updated_at`, [
+            input.dashboardId,
+            input.queryId,
+            input.name,
+            input.type,
+            JSON.stringify(input.config ?? {}),
+            input.positionX ?? 0,
+            input.positionY ?? 0,
+            input.width ?? 4,
+            input.height ?? 3,
+        ]);
         return mapWidget(result.rows[0]);
     }
     async update(id, input) {

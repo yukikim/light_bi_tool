@@ -23,6 +23,10 @@ const createSchema = zod_1.z.object({
     name: zod_1.z.string().min(1).max(200),
     type: zod_1.z.enum(["table", "line", "bar"]),
     config: zod_1.z.record(zod_1.z.string(), zod_1.z.unknown()).optional(),
+    positionX: zod_1.z.number().int().optional(),
+    positionY: zod_1.z.number().int().optional(),
+    width: zod_1.z.number().int().positive().optional(),
+    height: zod_1.z.number().int().positive().optional(),
 });
 const updateSchema = zod_1.z
     .object({
@@ -71,6 +75,10 @@ let WidgetsController = class WidgetsController {
             name: parsed.data.name,
             type: parsed.data.type,
             config: parsed.data.config,
+            ...(parsed.data.positionX !== undefined ? { positionX: parsed.data.positionX } : {}),
+            ...(parsed.data.positionY !== undefined ? { positionY: parsed.data.positionY } : {}),
+            ...(parsed.data.width !== undefined ? { width: parsed.data.width } : {}),
+            ...(parsed.data.height !== undefined ? { height: parsed.data.height } : {}),
         });
         return { data };
     }
