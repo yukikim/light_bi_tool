@@ -81,6 +81,40 @@ function coerceValue(def: QueryParamDef, raw: string): unknown {
   return trimmed;
 }
 
+function widgetParamStorageKey(widget: Widget) {
+  // widget.id は dashboard 内で一意の想定。queryId も含めて衝突を避ける。
+  return `lightbi_widget_params:${String(widget.id)}:${String(widget.queryId)}`;
+}
+
+function readPersistedParams(key: string): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    const obj = parsed as Record<string, unknown>;
+    const out: Record<string, string> = {};
+    for (const [k, v] of Object.entries(obj)) {
+      if (typeof k !== "string") continue;
+      if (v === undefined || v === null) continue;
+      out[k] = String(v);
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+function writePersistedParams(key: string, values: Record<string, string>) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(key, JSON.stringify(values));
+  } catch {
+    // ignore (quota, private mode etc.)
+  }
+}
+
 export function WidgetRenderer({ widget, queryParamDefs, globalParams }: Props) {
   const [data, setData] = useState<ExecuteResult | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -90,10 +124,18 @@ export function WidgetRenderer({ widget, queryParamDefs, globalParams }: Props) 
   const [draftParamValues, setDraftParamValues] = useState<Record<string, string>>({});
   const [committedParamValues, setCommittedParamValues] = useState<Record<string, string>>({});
   const lastGlobalRef = useRef<Record<string, string | number | boolean | undefined> | null>(null);
+  const persistedRef = useRef<Record<string, string> | null>(null);
+  const [isParamInitialized, setIsParamInitialized] = useState(false);
 
   useEffect(() => {
     // 初期値: default or globalParams を注入（既存入力は尊重）
     const prevGlobal = lastGlobalRef.current;
+    const storageKey = widgetParamStorageKey(widget);
+    if (persistedRef.current === null) {
+      persistedRef.current = readPersistedParams(storageKey);
+    }
+    const persisted = persistedRef.current ?? {};
+
     setDraftParamValues((current) => {
       const next = { ...current };
       for (const d of defs) {
@@ -105,6 +147,13 @@ export function WidgetRenderer({ widget, queryParamDefs, globalParams }: Props) 
           next[d.name] = String(gp);
           continue;
         }
+
+        const pv = persisted[d.name];
+        if (pv !== undefined && pv !== null && String(pv).length > 0) {
+          next[d.name] = String(pv);
+          continue;
+        }
+
         if (d.default !== undefined) {
           next[d.name] = String(d.default);
           continue;
@@ -133,6 +182,13 @@ export function WidgetRenderer({ widget, queryParamDefs, globalParams }: Props) 
           next[name] = gpStr;
           continue;
         }
+
+        const pv = persisted[name];
+        if (pv !== undefined && pv !== null && String(pv).length > 0) {
+          next[name] = String(pv);
+          continue;
+        }
+
         if (d.default !== undefined) {
           next[name] = String(d.default);
           continue;
@@ -141,7 +197,10 @@ export function WidgetRenderer({ widget, queryParamDefs, globalParams }: Props) 
       }
       return next;
     });
-  }, [defs, globalParams]);
+
+    // defs が確定したタイミングで初期化完了フラグを立てる（初回実行の missing_param を避ける）
+    setIsParamInitialized(true);
+  }, [defs, globalParams, widget]);
 
   useEffect(() => {
     lastGlobalRef.current = globalParams ?? null;
@@ -163,6 +222,9 @@ export function WidgetRenderer({ widget, queryParamDefs, globalParams }: Props) 
       const token = typeof window !== "undefined" ? window.localStorage.getItem("lightbi_token") : null;
       if (!token) return;
 
+      // パラメータ定義がある場合は初期化が完了してから実行する
+      if (defs.length > 0 && !isParamInitialized) return;
+
       setIsLoading(true);
       setError(null);
 
@@ -178,7 +240,7 @@ export function WidgetRenderer({ widget, queryParamDefs, globalParams }: Props) 
     };
 
     load();
-  }, [widget.queryId, execParams]);
+  }, [widget.queryId, execParams, defs.length, isParamInitialized]);
 
   return (
     <div className="px-3 py-3 text-sm text-zinc-700 dark:text-zinc-200">
@@ -191,59 +253,67 @@ export function WidgetRenderer({ widget, queryParamDefs, globalParams }: Props) 
         <p className="text-xs text-zinc-500 dark:text-zinc-400">データがありません。</p>
       )}
 
+      {!isLoading && !error && data && defs.length > 0 && (
+        <div className="mb-3 grid grid-cols-1 gap-2 rounded-md border border-zinc-200 bg-zinc-50 p-2 text-xs dark:border-zinc-800 dark:bg-zinc-900/40 sm:grid-cols-2">
+          {defs.map((p) => {
+            const label = p.label?.trim().length ? p.label : p.name;
+            const value = draftParamValues[p.name] ?? "";
+            if (p.type === "boolean") {
+              return (
+                <label key={p.name} className="flex items-center justify-between gap-2">
+                  <span className="text-zinc-600 dark:text-zinc-300">{label}</span>
+                  <select
+                    value={value || "false"}
+                    onChange={(e) => setDraftParamValues((cur) => ({ ...cur, [p.name]: e.target.value }))}
+                    onBlur={(e) => {
+                      const committed = e.currentTarget.value;
+                      setCommittedParamValues((cur) => {
+                        const next = { ...cur, [p.name]: committed };
+                        writePersistedParams(widgetParamStorageKey(widget), next);
+                        persistedRef.current = next;
+                        return next;
+                      });
+                    }}
+                    className="w-full max-w-48 rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+                  >
+                    <option value="false">false</option>
+                    <option value="true">true</option>
+                  </select>
+                </label>
+              );
+            }
+
+            const inputType = p.type === "number" ? "number" : p.type === "date" ? "date" : "text";
+            return (
+              <label key={p.name} className="flex items-center justify-between gap-2">
+                <span className="text-zinc-600 dark:text-zinc-300">
+                  {label}{p.required ? " *" : ""}
+                </span>
+                <input
+                  type={inputType}
+                  value={value}
+                  onChange={(e) => setDraftParamValues((cur) => ({ ...cur, [p.name]: e.target.value }))}
+                  onBlur={(e) => {
+                    const committed = e.currentTarget.value;
+                    setCommittedParamValues((cur) => {
+                      const next = { ...cur, [p.name]: committed };
+                      writePersistedParams(widgetParamStorageKey(widget), next);
+                      persistedRef.current = next;
+                      return next;
+                    });
+                  }}
+                  className="w-full max-w-48 rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+                />
+              </label>
+            );
+          })}
+        </div>
+      )}
+
       {!isLoading && !error && data && data.rows.length > 0 && (
         <>
-          {defs.length > 0 && (
-            <div className="mb-3 grid grid-cols-1 gap-2 rounded-md border border-zinc-200 bg-zinc-50 p-2 text-xs dark:border-zinc-800 dark:bg-zinc-900/40 sm:grid-cols-2">
-              {defs.map((p) => {
-                const label = p.label?.trim().length ? p.label : p.name;
-                const value = draftParamValues[p.name] ?? "";
-                if (p.type === "boolean") {
-                  return (
-                    <label key={p.name} className="flex items-center justify-between gap-2">
-                      <span className="text-zinc-600 dark:text-zinc-300">{label}</span>
-                      <select
-                        value={value || "false"}
-                        onChange={(e) => setDraftParamValues((cur) => ({ ...cur, [p.name]: e.target.value }))}
-                        onBlur={(e) => {
-                          const committed = e.currentTarget.value;
-                          setCommittedParamValues((cur) => ({ ...cur, [p.name]: committed }));
-                        }}
-                        className="w-full max-w-48 rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
-                      >
-                        <option value="false">false</option>
-                        <option value="true">true</option>
-                      </select>
-                    </label>
-                  );
-                }
-
-                const inputType = p.type === "number" ? "number" : p.type === "date" ? "date" : "text";
-                return (
-                  <label key={p.name} className="flex items-center justify-between gap-2">
-                    <span className="text-zinc-600 dark:text-zinc-300">
-                      {label}{p.required ? " *" : ""}
-                    </span>
-                    <input
-                      type={inputType}
-                      value={value}
-                      onChange={(e) => setDraftParamValues((cur) => ({ ...cur, [p.name]: e.target.value }))}
-                      onBlur={(e) => {
-                        const committed = e.currentTarget.value;
-                        setCommittedParamValues((cur) => ({ ...cur, [p.name]: committed }));
-                      }}
-                      className="w-full max-w-48 rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
-                    />
-                  </label>
-                );
-              })}
-            </div>
-          )}
-
-          {widget.type === "table" && (
-            <TableChart columns={data.columns} rows={data.rows} />
-          )}
-          {widget.type === "bar" && (
+          {widget.type === "table" && <TableChart columns={data.columns} rows={data.rows} />}
+          {widget.type === "bar" &&
             (() => {
               const cfg = asChartConfig(widget.config);
               const xKey = cfg.xKey ?? data.columns[0];
@@ -256,12 +326,9 @@ export function WidgetRenderer({ widget, queryParamDefs, globalParams }: Props) 
                   </p>
                 );
               }
-              return (
-                <BarChart xKey={xKey} series={series} rows={data.rows} options={options} />
-              );
-            })()
-          )}
-          {widget.type === "line" && (
+              return <BarChart xKey={xKey} series={series} rows={data.rows} options={options} />;
+            })()}
+          {widget.type === "line" &&
             (() => {
               const cfg = asChartConfig(widget.config);
               const xKey = cfg.xKey ?? data.columns[0];
@@ -274,11 +341,8 @@ export function WidgetRenderer({ widget, queryParamDefs, globalParams }: Props) 
                   </p>
                 );
               }
-              return (
-                <LineChart xKey={xKey} series={series} rows={data.rows} options={options} />
-              );
-            })()
-          )}
+              return <LineChart xKey={xKey} series={series} rows={data.rows} options={options} />;
+            })()}
         </>
       )}
     </div>
