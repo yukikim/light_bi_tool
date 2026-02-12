@@ -245,8 +245,8 @@ export default function QueryDetailPage() {
                     <div className="sm:col-span-3">
                       <label className="mb-1 block text-xs text-zinc-600 dark:text-zinc-400">name</label>
                       <input
-                        value={p.name}
-                        onChange={(e) => {
+                        defaultValue={p.name}
+                        onBlur={(e) => {
                           const nextName = e.target.value;
                           setParamDefs((cur) => cur.map((x, i) => (i === idx ? { ...x, name: nextName } : x)));
                         }}

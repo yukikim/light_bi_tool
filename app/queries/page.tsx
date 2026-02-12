@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import { useRouter } from "next/navigation";
-import { fetchQueries, createQueryApi, type Query } from "@/lib/apiClient";
+import { fetchQueries, createQueryApi, deleteQueryApi, type Query } from "@/lib/apiClient";
 
 export default function QueryListPage() {
   const router = useRouter();
   const [queries, setQueries] = useState<Query[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const load = async () => {
@@ -55,6 +56,40 @@ export default function QueryListPage() {
     router.push(`/queries/${id}`);
   };
 
+  const handleDelete = async (event: MouseEvent<HTMLButtonElement>, query: Query) => {
+    event.stopPropagation();
+    const ok = window.confirm(`クエリ「${query.name}」を削除しますか？`);
+    if (!ok) return;
+
+    const token = typeof window !== "undefined" ? window.localStorage.getItem("lightbi_token") : null;
+    if (!token) {
+      router.replace("/login");
+      return;
+    }
+
+    const queryId = String(query.id);
+    setError(null);
+    setDeletingIds((prev) => {
+      const next = new Set(prev);
+      next.add(queryId);
+      return next;
+    });
+
+    try {
+      await deleteQueryApi(token, query.id);
+      setQueries((current) => current.filter((q) => String(q.id) !== queryId));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "クエリの削除に失敗しました";
+      setError(message);
+    } finally {
+      setDeletingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(queryId);
+        return next;
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-zinc-50 px-6 py-8 dark:bg-black">
       <div className="mx-auto max-w-4xl">
@@ -94,6 +129,9 @@ export default function QueryListPage() {
                   <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                     ID
                   </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                    操作
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-200 bg-white dark:divide-zinc-800 dark:bg-zinc-950">
@@ -105,6 +143,16 @@ export default function QueryListPage() {
                   >
                     <td className="px-4 py-2 text-sm text-zinc-900 dark:text-zinc-50">{q.name}</td>
                     <td className="px-4 py-2 text-sm text-zinc-600 dark:text-zinc-400">{q.id}</td>
+                    <td className="px-4 py-2 text-sm">
+                      <button
+                        type="button"
+                        onClick={(event) => handleDelete(event, q)}
+                        disabled={deletingIds.has(String(q.id))}
+                        className="rounded-md px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:text-red-300 dark:hover:bg-red-950/40"
+                      >
+                        削除
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

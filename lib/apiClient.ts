@@ -469,3 +469,25 @@ export async function updateQueryApi(
   const data = json?.data ?? json;
   return data as Query;
 }
+
+export async function deleteQueryApi(token: string, id: string | number): Promise<{ id: string | number }> {
+  const baseUrl = getBaseUrl();
+
+  const res = await fetch(`${baseUrl}/api/queries/${id}`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const json = await res.json().catch(() => undefined);
+
+  if (!res.ok) {
+    const message = json?.error?.message ?? json?.message ?? "クエリの削除に失敗しました";
+    throw new Error(message);
+  }
+
+  const data = json?.data ?? json;
+  return data as { id: string | number };
+}

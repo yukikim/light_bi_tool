@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getQueryById, updateQuery } from "@/lib/mockData";
+import { deleteQuery, getQueryById, updateQuery } from "@/lib/mockData";
 import { randomUUID } from "crypto";
 
 const BACKEND_API_BASE_URL = process.env.BACKEND_API_BASE_URL;
@@ -131,4 +131,32 @@ export async function PUT(req: NextRequest, context: { params: Promise<{ id: str
   }
 
   return NextResponse.json({ data: updated }, { status: 200 });
+}
+
+export async function DELETE(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const { id: idParam } = await context.params;
+
+  if (BACKEND_API_BASE_URL) {
+    return proxyToBackend(req, idParam);
+  }
+
+  const id = Number(idParam);
+
+  if (Number.isNaN(id)) {
+    return NextResponse.json(
+      { error: { code: "BAD_REQUEST", message: "id が不正です" } },
+      { status: 400 },
+    );
+  }
+
+  const deleted = deleteQuery(id);
+
+  if (!deleted) {
+    return NextResponse.json(
+      { error: { code: "NOT_FOUND", message: "クエリが見つかりません" } },
+      { status: 404 },
+    );
+  }
+
+  return NextResponse.json({ data: { id } }, { status: 200 });
 }

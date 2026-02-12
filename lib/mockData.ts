@@ -245,3 +245,18 @@ export function updateQuery(
   if (patch.paramDefs !== undefined) q.paramDefs = patch.paramDefs;
   return q;
 }
+
+export function deleteQuery(id: number): boolean {
+  const index = queries.findIndex((q) => q.id === id);
+  if (index === -1) return false;
+
+  queries.splice(index, 1);
+
+  for (let i = widgets.length - 1; i >= 0; i--) {
+    if (widgets[i].queryId === id) {
+      widgets.splice(i, 1);
+    }
+  }
+
+  return true;
+}
