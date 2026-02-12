@@ -84,7 +84,7 @@ export default function DashboardListPage() {
       <div className="mx-auto max-w-4xl">
         <header className="mb-6 flex items-center justify-between">
           <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
-            ダッシュボード一覧
+            ダッシュボードリスト
           </h1>
           <button
             type="button"
