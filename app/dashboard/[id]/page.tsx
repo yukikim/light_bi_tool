@@ -34,6 +34,9 @@ export default function DashboardDetailPage() {
   const [queries, setQueries] = useState<Query[]>([]);
   const [from, setFrom] = useState<string>("");
   const [to, setTo] = useState<string>("");
+  const [draftFrom, setDraftFrom] = useState<string>("");
+  const [draftTo, setDraftTo] = useState<string>("");
+  const [hasAppliedFilter, setHasAppliedFilter] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [savingWidgetIds, setSavingWidgetIds] = useState<Set<string>>(new Set());
@@ -153,8 +156,11 @@ export default function DashboardDetailPage() {
   }, []);
 
   const handleApplyFilter = () => {
+    setFrom(draftFrom);
+    setTo(draftTo);
+    setHasAppliedFilter(true);
     // 今はまだ実際の再フェッチまでは行わず、後でExecute API実装時に連動させる
-    console.log("apply filter", { from, to });
+    console.log("apply filter", { from: draftFrom, to: draftTo });
   };
 
   const handleCreateWidget = async () => {
@@ -557,23 +563,28 @@ export default function DashboardDetailPage() {
               <div className="flex gap-2">
                 <input
                   type="date"
-                  value={from}
-                  onChange={(e) => setFrom(e.target.value)}
-                  className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+                  value={draftFrom}
+                  onChange={(e) => setDraftFrom(e.target.value)}
+                  className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 "
                 />
                 <span className="self-center text-zinc-500">〜</span>
                 <input
                   type="date"
-                  value={to}
-                  onChange={(e) => setTo(e.target.value)}
-                  className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+                  value={draftTo}
+                  onChange={(e) => setDraftTo(e.target.value)}
+                  className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 "
                 />
               </div>
             </div>
             <button
               type="button"
               onClick={handleApplyFilter}
-              className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+              disabled={hasAppliedFilter && draftFrom === from && draftTo === to}
+              className={
+                hasAppliedFilter && draftFrom === from && draftTo === to
+                  ? "rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 shadow-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-300"
+                  : "rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+              }
             >
               フィルタ適用
             </button>

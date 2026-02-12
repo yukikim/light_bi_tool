@@ -229,6 +229,19 @@ export default function QueryDetailPage() {
               </div>
             </div>
 
+            <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-200">
+              <p className="mb-2">
+                SQL内ではパラメータを <span className="font-mono">{"{{from}}"}</span> / <span className="font-mono">{"{{to}}"}</span> の形式で参照します。
+              </p>
+              <p className="mb-2">
+                date列が <span className="font-mono">timestamp</span> で、値がUTC相当（例: <span className="font-mono">...Z</span>）のときは、JST日付で絞り込むために下記の形を推奨します。
+              </p>
+              <pre className="overflow-auto rounded-md border border-zinc-200 bg-white p-2 font-mono text-[11px] text-zinc-800 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100">
+{`WHERE (((date AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Tokyo')::date) >= {{from}}::date
+  AND (((date AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Tokyo')::date) <= {{to}}::date`}
+              </pre>
+            </div>
+
             {paramDefs.length === 0 && (
               <p className="text-sm text-zinc-600 dark:text-zinc-400">
                 まだパラメータは定義されていません。
