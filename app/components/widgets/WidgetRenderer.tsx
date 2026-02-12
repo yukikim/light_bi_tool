@@ -243,7 +243,7 @@ export function WidgetRenderer({ widget, queryParamDefs, globalParams }: Props) 
   }, [widget.queryId, execParams, defs.length, isParamInitialized]);
 
   return (
-    <div className="px-3 py-3 text-sm text-zinc-700 dark:text-zinc-200">
+    <div className="flex min-h-0 flex-1 flex-col px-3 py-3 text-sm text-zinc-700 dark:text-zinc-200">
       {isLoading && <p className="text-xs text-zinc-500 dark:text-zinc-400">読み込み中...</p>}
       {error && !isLoading && (
         <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
@@ -311,7 +311,7 @@ export function WidgetRenderer({ widget, queryParamDefs, globalParams }: Props) 
       )}
 
       {!isLoading && !error && data && data.rows.length > 0 && (
-        <>
+        <div className="flex min-h-0 flex-1 flex-col">
           {widget.type === "table" && <TableChart columns={data.columns} rows={data.rows} />}
           {widget.type === "bar" &&
             (() => {
@@ -343,7 +343,7 @@ export function WidgetRenderer({ widget, queryParamDefs, globalParams }: Props) 
               }
               return <LineChart xKey={xKey} series={series} rows={data.rows} options={options} />;
             })()}
-        </>
+        </div>
       )}
     </div>
   );

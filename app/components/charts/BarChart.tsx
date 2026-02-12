@@ -34,12 +34,12 @@ type Props = {
 };
 
 const DEFAULT_COLORS = [
-  "#0f172a", // slate-900
-  "#2563eb", // blue-600
-  "#16a34a", // green-600
-  "#dc2626", // red-600
-  "#7c3aed", // violet-600
-  "#ea580c", // orange-600
+  "#51a2ff", // blue-400
+  "#ffb900", // amber-400
+  "#05df72", // green-400
+  "#ff6467", // red-400
+  "#a684ff", // violet-400
+  "#ff8904", // orange-400
 ];
 
 function toNumber(value: unknown): number {
@@ -57,6 +57,14 @@ function formatNumber(value: unknown, mode: ChartOptions["numberFormat"]): strin
   return new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 2 }).format(n);
 }
 
+function formatDateLabel(value: unknown): string {
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(value)) {
+    return value.slice(0, 10);
+  }
+  return String(value ?? "");
+}
+
 export function BarChart({ xKey, series, rows, options }: Props) {
   const showLegend = options?.showLegend ?? true;
   const showGrid = options?.showGrid ?? true;
@@ -71,11 +79,11 @@ export function BarChart({ xKey, series, rows, options }: Props) {
   if (rows.length === 0) return null;
 
   return (
-    <div className="h-64 w-full">
+    <div className="h-full w-full">
       <ResponsiveContainer width="100%" height="100%">
         <ReBarChart data={rows} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
           {showGrid && <CartesianGrid strokeDasharray="3 3" />}
-          <XAxis dataKey={xKey} tick={{ fontSize: 12 }} />
+          <XAxis dataKey={xKey} tick={{ fontSize: 12 }} tickFormatter={formatDateLabel} />
           <YAxis
             yAxisId="left"
             tick={{ fontSize: 12 }}
@@ -93,7 +101,21 @@ export function BarChart({ xKey, series, rows, options }: Props) {
           {showTooltip && (
             <Tooltip
               formatter={(v, name) => [formatNumber(v, numberFormat), String(name)]}
-              labelFormatter={(label) => String(label)}
+              labelFormatter={(label) => formatDateLabel(label)}
+              contentStyle={{
+                backgroundColor: "rgba(255, 255, 255, 0.95)",
+                border: "1px solid #e4e4e7",
+                borderRadius: "6px",
+                padding: "8px 12px",
+              }}
+              labelStyle={{
+                color: "#18181b",
+                fontWeight: 600,
+                marginBottom: "4px",
+              }}
+              itemStyle={{
+                fontSize: "12px",
+              }}
             />
           )}
           {showLegend && <Legend wrapperStyle={{ fontSize: 12 }} />}

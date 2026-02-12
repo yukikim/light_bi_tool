@@ -3,9 +3,18 @@ type Props = {
   rows: Record<string, unknown>[];
 };
 
+function formatCellValue(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(value)) {
+    return value.slice(0, 10);
+  }
+  return String(value);
+}
+
 export function TableChart({ columns, rows }: Props) {
   return (
-    <div className="overflow-auto">
+    <div className="h-full overflow-auto">
       <table className="min-w-full divide-y divide-zinc-200 text-xs dark:divide-zinc-800">
         <thead className="bg-zinc-50 dark:bg-zinc-900">
           <tr>
@@ -24,7 +33,7 @@ export function TableChart({ columns, rows }: Props) {
             <tr key={idx} className="hover:bg-zinc-50 dark:hover:bg-zinc-900">
               {columns.map((col) => (
                 <td key={col} className="px-2 py-1 text-zinc-700 dark:text-zinc-200">
-                  {String(row[col] ?? "")}
+                  {formatCellValue(row[col])}
                 </td>
               ))}
             </tr>
