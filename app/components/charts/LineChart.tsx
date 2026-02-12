@@ -100,7 +100,7 @@ export function LineChart({ xKey, series, rows, options }: Props) {
               formatter={(v, name) => [formatNumber(v, numberFormat), String(name)]}
               labelFormatter={(label) => formatDateLabel(label)}
               contentStyle={{
-                backgroundColor: "rgba(255, 255, 255, 0.95)",
+                backgroundColor: "rgba(226, 232, 240, 0.95)",
                 border: "1px solid #e4e4e7",
                 borderRadius: "6px",
                 padding: "8px 12px",
