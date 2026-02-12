@@ -73,12 +73,15 @@ let QueriesController = class QueriesController {
         const data = await this.queries.update(id, input);
         return { data };
     }
-    async remove(idParam) {
+    async remove(idParam, force) {
         const id = Number(idParam);
         if (!Number.isFinite(id)) {
             throw new common_1.BadRequestException("id が不正です");
         }
-        const data = await this.queries.remove(id);
+        const forceDelete = force === "1" || force === "true";
+        const data = forceDelete
+            ? await this.queries.removeWithOptions(id, { force: true })
+            : await this.queries.remove(id);
         return { data };
     }
 };
@@ -114,8 +117,9 @@ __decorate([
 __decorate([
     (0, common_1.Delete)(":id"),
     __param(0, (0, common_1.Param)("id")),
+    __param(1, (0, common_1.Query)("force")),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", Promise)
 ], QueriesController.prototype, "remove", null);
 exports.QueriesController = QueriesController = __decorate([

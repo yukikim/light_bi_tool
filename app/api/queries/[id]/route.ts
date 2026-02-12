@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { deleteQuery, getQueryById, updateQuery } from "@/lib/mockData";
+import { countWidgetsByQueryId, deleteQuery, getQueryById, updateQuery } from "@/lib/mockData";
 import { randomUUID } from "crypto";
 
 const BACKEND_API_BASE_URL = process.env.BACKEND_API_BASE_URL;
@@ -7,7 +7,7 @@ const BACKEND_API_BASE_URL = process.env.BACKEND_API_BASE_URL;
 async function proxyToBackend(req: NextRequest, id: string) {
   const authorization = req.headers.get("authorization") ?? "";
   const requestId = req.headers.get("x-request-id") ?? randomUUID();
-  const upstream = await fetch(`${BACKEND_API_BASE_URL}/queries/${id}`, {
+  const upstream = await fetch(`${BACKEND_API_BASE_URL}/queries/${id}${req.nextUrl.search}`, {
     method: req.method,
     headers: {
       "Content-Type": req.headers.get("content-type") ?? "application/json",
@@ -146,6 +146,21 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
     return NextResponse.json(
       { error: { code: "BAD_REQUEST", message: "id が不正です" } },
       { status: 400 },
+    );
+  }
+
+  const force = req.nextUrl.searchParams.get("force");
+  const forceDelete = force === "1" || force === "true";
+  const widgetCount = countWidgetsByQueryId(id);
+  if (!forceDelete && widgetCount > 0) {
+    return NextResponse.json(
+      {
+        error: {
+          code: "CONFLICT",
+          message: `このクエリは ${widgetCount} 件のウィジェットで使用されています。削除するとウィジェットも削除されます。続行しますか？`,
+        },
+      },
+      { status: 409 },
     );
   }
 

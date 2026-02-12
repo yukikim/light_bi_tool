@@ -10,6 +10,7 @@ export default function QueryListPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; message: string } | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -58,8 +59,46 @@ export default function QueryListPage() {
 
   const handleDelete = async (event: MouseEvent<HTMLButtonElement>, query: Query) => {
     event.stopPropagation();
-    const ok = window.confirm(`クエリ「${query.name}」を削除しますか？`);
-    if (!ok) return;
+    const token = typeof window !== "undefined" ? window.localStorage.getItem("lightbi_token") : null;
+    if (!token) {
+      router.replace("/login");
+      return;
+    }
+
+    const queryId = String(query.id);
+    setError(null);
+    if (deleteConfirm?.id !== queryId) {
+      setDeleteConfirm(null);
+    }
+    setDeletingIds((prev) => {
+      const next = new Set(prev);
+      next.add(queryId);
+      return next;
+    });
+
+    try {
+      await deleteQueryApi(token, query.id);
+      setQueries((current) => current.filter((q) => String(q.id) !== queryId));
+      setDeleteConfirm(null);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "クエリの削除に失敗しました";
+      const status = (err as any)?.status as number | undefined;
+      if (status === 409) {
+        setDeleteConfirm({ id: queryId, message });
+      } else {
+        setError(message);
+      }
+    } finally {
+      setDeletingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(queryId);
+        return next;
+      });
+    }
+  };
+
+  const handleForceDelete = async (event: MouseEvent<HTMLButtonElement>, query: Query) => {
+    event.stopPropagation();
 
     const token = typeof window !== "undefined" ? window.localStorage.getItem("lightbi_token") : null;
     if (!token) {
@@ -76,8 +115,9 @@ export default function QueryListPage() {
     });
 
     try {
-      await deleteQueryApi(token, query.id);
+      await deleteQueryApi(token, query.id, { force: true });
       setQueries((current) => current.filter((q) => String(q.id) !== queryId));
+      setDeleteConfirm(null);
     } catch (err) {
       const message = err instanceof Error ? err.message : "クエリの削除に失敗しました";
       setError(message);
@@ -88,6 +128,11 @@ export default function QueryListPage() {
         return next;
       });
     }
+  };
+
+  const handleCancelDelete = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    setDeleteConfirm(null);
   };
 
   return (
@@ -144,14 +189,38 @@ export default function QueryListPage() {
                     <td className="px-4 py-2 text-sm text-zinc-900 dark:text-zinc-50">{q.name}</td>
                     <td className="px-4 py-2 text-sm text-zinc-600 dark:text-zinc-400">{q.id}</td>
                     <td className="px-4 py-2 text-sm">
-                      <button
-                        type="button"
-                        onClick={(event) => handleDelete(event, q)}
-                        disabled={deletingIds.has(String(q.id))}
-                        className="rounded-md px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:text-red-300 dark:hover:bg-red-950/40"
-                      >
-                        削除
-                      </button>
+                      {deleteConfirm?.id === String(q.id) ? (
+                        <div className="space-y-2">
+                          <p className="text-xs text-zinc-700 dark:text-zinc-300">{deleteConfirm.message}</p>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={(event) => handleForceDelete(event, q)}
+                              disabled={deletingIds.has(String(q.id))}
+                              className="rounded-md bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-red-500 dark:hover:bg-red-400"
+                            >
+                              delete
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleCancelDelete}
+                              disabled={deletingIds.has(String(q.id))}
+                              className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-900"
+                            >
+                              cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={(event) => handleDelete(event, q)}
+                          disabled={deletingIds.has(String(q.id))}
+                          className="rounded-md px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:text-red-300 dark:hover:bg-red-950/40"
+                        >
+                          削除
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

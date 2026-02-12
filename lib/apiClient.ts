@@ -470,10 +470,19 @@ export async function updateQueryApi(
   return data as Query;
 }
 
-export async function deleteQueryApi(token: string, id: string | number): Promise<{ id: string | number }> {
+export async function deleteQueryApi(
+  token: string,
+  id: string | number,
+  options?: { force?: boolean },
+): Promise<{ id: string | number }> {
   const baseUrl = getBaseUrl();
 
-  const res = await fetch(`${baseUrl}/api/queries/${id}`, {
+  const url = new URL(`${baseUrl}/api/queries/${id}`);
+  if (options?.force) {
+    url.searchParams.set("force", "1");
+  }
+
+  const res = await fetch(url.toString(), {
     method: "DELETE",
     headers: {
       "Content-Type": "application/json",
@@ -485,7 +494,9 @@ export async function deleteQueryApi(token: string, id: string | number): Promis
 
   if (!res.ok) {
     const message = json?.error?.message ?? json?.message ?? "クエリの削除に失敗しました";
-    throw new Error(message);
+    const err = new Error(message) as Error & { status?: number };
+    err.status = res.status;
+    throw err;
   }
 
   const data = json?.data ?? json;

@@ -246,6 +246,10 @@ export function updateQuery(
   return q;
 }
 
+export function countWidgetsByQueryId(queryId: number): number {
+  return widgets.filter((w) => w.queryId === queryId).length;
+}
+
 export function deleteQuery(id: number): boolean {
   const index = queries.findIndex((q) => q.id === id);
   if (index === -1) return false;

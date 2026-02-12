@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { DbService } from "../db/db.service";
+import type { PoolClient } from "pg";
 
 export type QueryParamType = "string" | "number" | "date" | "boolean";
 
@@ -96,15 +97,53 @@ export class QueriesService {
   }
 
   async remove(id: number): Promise<{ id: number }> {
-    const result = await this.db.query<{ id: number }>(
-      `DELETE FROM queries
-       WHERE id = $1
-       RETURNING id`,
-      [id],
-    );
+    return this.removeWithOptions(id, { force: false });
+  }
 
-    const row = result.rows[0];
-    if (!row) throw new NotFoundException("クエリが見つかりません");
-    return row;
+  async removeWithOptions(id: number, options: { force: boolean }): Promise<{ id: number }> {
+    return this.db.withClient(async (client: PoolClient) => {
+      await client.query("BEGIN");
+      try {
+        const widgetCountResult = await client.query<{ count: string }>(
+          `SELECT COUNT(*) AS count
+           FROM widgets
+           WHERE query_id = $1`,
+          [id],
+        );
+        const widgetCount = Number(widgetCountResult.rows[0]?.count ?? 0);
+
+        if (!options.force && widgetCount > 0) {
+          await client.query("ROLLBACK");
+          throw new ConflictException(
+            `このクエリは ${widgetCount} 件のウィジェットで使用されています。削除するとウィジェットも削除されます。続行しますか？`,
+          );
+        }
+
+        if (options.force && widgetCount > 0) {
+          // widgets.query_id は ON DELETE RESTRICT のため、先に参照ウィジェットを削除する
+          await client.query(
+            `DELETE FROM widgets
+             WHERE query_id = $1`,
+            [id],
+          );
+        }
+
+        const result = await client.query<{ id: number }>(
+          `DELETE FROM queries
+           WHERE id = $1
+           RETURNING id`,
+          [id],
+        );
+
+        const row = result.rows[0];
+        if (!row) throw new NotFoundException("クエリが見つかりません");
+
+        await client.query("COMMIT");
+        return row;
+      } catch (err) {
+        await client.query("ROLLBACK");
+        throw err;
+      }
+    });
   }
 }

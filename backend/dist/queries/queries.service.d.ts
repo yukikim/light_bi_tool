@@ -33,4 +33,9 @@ export declare class QueriesService {
     remove(id: number): Promise<{
         id: number;
     }>;
+    removeWithOptions(id: number, options: {
+        force: boolean;
+    }): Promise<{
+        id: number;
+    }>;
 }

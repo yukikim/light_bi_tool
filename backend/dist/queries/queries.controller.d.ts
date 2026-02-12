@@ -14,7 +14,7 @@ export declare class QueriesController {
     update(idParam: string, body: unknown): Promise<{
         data: import("./queries.service").QueryDto;
     }>;
-    remove(idParam: string): Promise<{
+    remove(idParam: string, force?: string): Promise<{
         data: {
             id: number;
         };

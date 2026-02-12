@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from "@nestjs/common";
 import { z } from "zod";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { QueriesService, QueryParamDef } from "./queries.service";
@@ -71,12 +71,16 @@ export class QueriesController {
   }
 
   @Delete(":id")
-  async remove(@Param("id") idParam: string) {
+  async remove(@Param("id") idParam: string, @Query("force") force?: string) {
     const id = Number(idParam);
     if (!Number.isFinite(id)) {
       throw new BadRequestException("id が不正です");
     }
-    const data = await this.queries.remove(id);
+
+    const forceDelete = force === "1" || force === "true";
+    const data = forceDelete
+      ? await this.queries.removeWithOptions(id, { force: true })
+      : await this.queries.remove(id);
     return { data };
   }
 }

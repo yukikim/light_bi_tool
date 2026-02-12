@@ -62,13 +62,38 @@ let QueriesService = class QueriesService {
         return mapQuery(row);
     }
     async remove(id) {
-        const result = await this.db.query(`DELETE FROM queries
-       WHERE id = $1
-       RETURNING id`, [id]);
-        const row = result.rows[0];
-        if (!row)
-            throw new common_1.NotFoundException("クエリが見つかりません");
-        return row;
+        return this.removeWithOptions(id, { force: false });
+    }
+    async removeWithOptions(id, options) {
+        return this.db.withClient(async (client) => {
+            await client.query("BEGIN");
+            try {
+                const widgetCountResult = await client.query(`SELECT COUNT(*) AS count
+           FROM widgets
+           WHERE query_id = $1`, [id]);
+                const widgetCount = Number(widgetCountResult.rows[0]?.count ?? 0);
+                if (!options.force && widgetCount > 0) {
+                    await client.query("ROLLBACK");
+                    throw new common_1.ConflictException(`このクエリは ${widgetCount} 件のウィジェットで使用されています。削除するとウィジェットも削除されます。続行しますか？`);
+                }
+                if (options.force && widgetCount > 0) {
+                    await client.query(`DELETE FROM widgets
+             WHERE query_id = $1`, [id]);
+                }
+                const result = await client.query(`DELETE FROM queries
+           WHERE id = $1
+           RETURNING id`, [id]);
+                const row = result.rows[0];
+                if (!row)
+                    throw new common_1.NotFoundException("クエリが見つかりません");
+                await client.query("COMMIT");
+                return row;
+            }
+            catch (err) {
+                await client.query("ROLLBACK");
+                throw err;
+            }
+        });
     }
 };
 exports.QueriesService = QueriesService;
