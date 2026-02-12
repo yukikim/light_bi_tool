@@ -87,12 +87,15 @@ export default function CsvPage() {
 
         <div className="rounded-md border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <input
-              type="file"
-              accept=".csv,text/csv"
-              onChange={(e) => onChangeFile(e.target.files?.[0] ?? null)}
-              className="text-sm text-zinc-700 dark:text-zinc-200"
-            />
+            <label>
+              クリックしてCSVファイルを選択
+              <input
+                type="file"
+                accept=".csv,text/csv"
+                onChange={(e) => onChangeFile(e.target.files?.[0] ?? null)}
+                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-zinc-300 file:text-blue-700 hover:file:bg-zinc-100"
+              />
+            </label>
             <button
               type="button"
               onClick={onUpload}
