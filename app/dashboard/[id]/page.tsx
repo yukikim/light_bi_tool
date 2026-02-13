@@ -565,14 +565,14 @@ export default function DashboardDetailPage() {
                   type="date"
                   value={draftFrom}
                   onChange={(e) => setDraftFrom(e.target.value)}
-                  className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 "
+                  className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
                 />
                 <span className="self-center text-zinc-500">〜</span>
                 <input
                   type="date"
                   value={draftTo}
                   onChange={(e) => setDraftTo(e.target.value)}
-                  className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 "
+                  className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
                 />
               </div>
             </div>
@@ -774,144 +774,144 @@ export default function DashboardDetailPage() {
                           />
                         </div>
 
-                    {editingWidgetId === String(w.id) && (
-                      <div className="border-b border-zinc-200 bg-white px-3 py-3 text-xs text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200">
-                        <div className="grid grid-cols-1 gap-3">
-                          <div>
-                            <label className="mb-1 block text-xs text-zinc-600 dark:text-zinc-300">名前</label>
-                            <input
-                              value={editName}
-                              onChange={(e) => setEditName(e.target.value)}
-                              className="w-full rounded-md border border-zinc-300 bg-white px-2 py-2 text-sm text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
-                            />
-                          </div>
+                        <div className="flex min-h-0 flex-1 flex-col overflow-auto">
+                          {editingWidgetId === String(w.id) && (
+                            <div className="border-b border-zinc-200 bg-white px-3 py-3 text-xs text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200">
+                              <div className="grid grid-cols-1 gap-3">
+                                <div>
+                                  <label className="mb-1 block text-xs text-zinc-600 dark:text-zinc-300">名前</label>
+                                  <input
+                                    value={editName}
+                                    onChange={(e) => setEditName(e.target.value)}
+                                    className="w-full rounded-md border border-zinc-300 bg-white px-2 py-2 text-sm text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+                                  />
+                                </div>
 
-                          <div>
-                            <label className="mb-1 block text-xs text-zinc-600 dark:text-zinc-300">タイプ</label>
-                            <select
-                              value={editType}
-                              onChange={(e) => {
-                                const nextType = e.target.value as WidgetType;
-                                setEditType(nextType);
-                                // configが未入力のときだけ、タイプに応じたテンプレを自動入力
-                                if (editConfigText.trim().length === 0) {
-                                  setEditConfigText(getConfigTemplateText(nextType));
-                                }
-                              }}
-                              className="w-full rounded-md border border-zinc-300 bg-white px-2 py-2 text-sm text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
-                            >
-                              <option value="table">table</option>
-                              <option value="bar">bar</option>
-                              <option value="line">line</option>
-                            </select>
-                          </div>
+                                <div>
+                                  <label className="mb-1 block text-xs text-zinc-600 dark:text-zinc-300">タイプ</label>
+                                  <select
+                                    value={editType}
+                                    onChange={(e) => {
+                                      const nextType = e.target.value as WidgetType;
+                                      setEditType(nextType);
+                                      // configが未入力のときだけ、タイプに応じたテンプレを自動入力
+                                      if (editConfigText.trim().length === 0) {
+                                        setEditConfigText(getConfigTemplateText(nextType));
+                                      }
+                                    }}
+                                    className="w-full rounded-md border border-zinc-300 bg-white px-2 py-2 text-sm text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+                                  >
+                                    <option value="table">table</option>
+                                    <option value="bar">bar</option>
+                                    <option value="line">line</option>
+                                  </select>
+                                </div>
 
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <label className="mb-1 block text-xs text-zinc-600 dark:text-zinc-300">幅（w）</label>
-                              <input
-                                type="number"
-                                min={1}
-                                max={12}
-                                value={editWidth}
-                                onChange={(e) => setEditWidth(e.target.value)}
-                                className="w-full rounded-md border border-zinc-300 bg-white px-2 py-2 text-sm text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
-                                placeholder="1-12"
-                              />
-                            </div>
-                            <div>
-                              <label className="mb-1 block text-xs text-zinc-600 dark:text-zinc-300">高さ（h）</label>
-                              <input
-                                type="number"
-                                min={1}
-                                value={editHeight}
-                                onChange={(e) => setEditHeight(e.target.value)}
-                                className="w-full rounded-md border border-zinc-300 bg-white px-2 py-2 text-sm text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
-                              />
-                            </div>
-                          </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <label className="mb-1 block text-xs text-zinc-600 dark:text-zinc-300">幅（w）</label>
+                                    <input
+                                      type="number"
+                                      min={1}
+                                      max={12}
+                                      value={editWidth}
+                                      onChange={(e) => setEditWidth(e.target.value)}
+                                      className="w-full rounded-md border border-zinc-300 bg-white px-2 py-2 text-sm text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+                                      placeholder="1-12"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="mb-1 block text-xs text-zinc-600 dark:text-zinc-300">高さ（h）</label>
+                                    <input
+                                      type="number"
+                                      min={1}
+                                      value={editHeight}
+                                      onChange={(e) => setEditHeight(e.target.value)}
+                                      className="w-full rounded-md border border-zinc-300 bg-white px-2 py-2 text-sm text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+                                    />
+                                  </div>
+                                </div>
 
-                          <div>
-                            <div className="mb-1 flex items-center justify-between gap-2">
-                              <label className="block text-xs text-zinc-600 dark:text-zinc-300">config（JSON）</label>
-                              <div className="flex items-center gap-2">
+                                <div>
+                                  <div className="mb-1 flex items-center justify-between gap-2">
+                                    <label className="block text-xs text-zinc-600 dark:text-zinc-300">config（JSON）</label>
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => applyConfigTemplate(editType)}
+                                        className="rounded bg-zinc-100 px-2 py-1 text-[11px] text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                                      >
+                                        テンプレ
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setEditConfigText("{}")}
+                                        className="rounded bg-zinc-100 px-2 py-1 text-[11px] text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                                      >
+                                        空オブジェクト
+                                      </button>
+                                    </div>
+                                  </div>
+                                  <textarea
+                                    value={editConfigText}
+                                    onChange={(e) => setEditConfigText(e.target.value)}
+                                    rows={6}
+                                    className="w-full rounded-md border border-zinc-300 bg-white px-2 py-2 font-mono text-xs text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+                                    placeholder='例: {"xKey":"date","yKeys":["sales"]}'
+                                  />
+                                  <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                                    未入力の場合は config を変更しません。
+                                  </p>
+                                </div>
+                              </div>
+
+                              {editError && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{editError}</p>}
+
+                              <div className="mt-3 flex items-center justify-end gap-2">
                                 <button
                                   type="button"
-                                  onClick={() => applyConfigTemplate(editType)}
-                                  className="rounded bg-zinc-100 px-2 py-1 text-[11px] text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                                  onClick={closeEditWidget}
+                                  className="rounded-md px-3 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-900"
                                 >
-                                  テンプレ
+                                  閉じる
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => setEditConfigText("{}")}
-                                  className="rounded bg-zinc-100 px-2 py-1 text-[11px] text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                                  onClick={handleSaveWidgetEdit}
+                                  disabled={savingWidgetIds.has(String(w.id))}
+                                  className="rounded-md bg-zinc-900 px-3 py-2 text-xs font-medium text-white hover:bg-zinc-800 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
                                 >
-                                  空オブジェクト
+                                  {savingWidgetIds.has(String(w.id)) ? "保存中..." : "保存"}
                                 </button>
                               </div>
                             </div>
-                            <textarea
-                              value={editConfigText}
-                              onChange={(e) => setEditConfigText(e.target.value)}
-                              rows={6}
-                              className="w-full rounded-md border border-zinc-300 bg-white px-2 py-2 font-mono text-xs text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
-                              placeholder='例: {"xKey":"date","yKeys":["sales"]}'
-                            />
-                            <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
-                              未入力の場合は config を変更しません。
-                            </p>
+                          )}
+
+                          <div className="border-b border-zinc-200 px-3 py-2 text-xs text-zinc-700 dark:border-zinc-800 dark:text-zinc-200">
+                            <label className="flex items-center justify-between gap-2">
+                              <span className="shrink-0 text-zinc-600 dark:text-zinc-300">クエリ</span>
+                              <select
+                                className="w-full max-w-55 rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+                                value={String(w.queryId)}
+                                onChange={(e) => handleChangeWidgetQuery(w.id, e.target.value)}
+                                disabled={savingWidgetIds.has(String(w.id)) || queries.length === 0}
+                              >
+                                {queries.length === 0 && <option value={String(w.queryId)}>（クエリなし）</option>}
+                                {queries.map((q) => (
+                                  <option key={q.id} value={String(q.id)}>
+                                    {q.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
                           </div>
+
+                          <WidgetRenderer
+                            widget={w}
+                            queryParamDefs={queries.find((q) => String(q.id) === String(w.queryId))?.paramDefs}
+                            globalParams={{ from, to }}
+                          />
                         </div>
-
-                        {editError && (
-                          <p className="mt-2 text-xs text-red-600 dark:text-red-400">{editError}</p>
-                        )}
-
-                        <div className="mt-3 flex items-center justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={closeEditWidget}
-                            className="rounded-md px-3 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-900"
-                          >
-                            閉じる
-                          </button>
-                          <button
-                            type="button"
-                            onClick={handleSaveWidgetEdit}
-                            disabled={savingWidgetIds.has(String(w.id))}
-                            className="rounded-md bg-zinc-900 px-3 py-2 text-xs font-medium text-white hover:bg-zinc-800 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
-                          >
-                            {savingWidgetIds.has(String(w.id)) ? "保存中..." : "保存"}
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="border-b border-zinc-200 px-3 py-2 text-xs text-zinc-700 dark:border-zinc-800 dark:text-zinc-200">
-                      <label className="flex items-center justify-between gap-2">
-                        <span className="shrink-0 text-zinc-600 dark:text-zinc-300">クエリ</span>
-                        <select
-                          className="w-full max-w-55 rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
-                          value={String(w.queryId)}
-                          onChange={(e) => handleChangeWidgetQuery(w.id, e.target.value)}
-                          disabled={savingWidgetIds.has(String(w.id)) || queries.length === 0}
-                        >
-                          {queries.length === 0 && <option value={String(w.queryId)}>（クエリなし）</option>}
-                          {queries.map((q) => (
-                            <option key={q.id} value={String(q.id)}>
-                              {q.name}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    </div>
-
-                    <WidgetRenderer
-                      widget={w}
-                      queryParamDefs={queries.find((q) => String(q.id) === String(w.queryId))?.paramDefs}
-                      globalParams={{ from, to }}
-                    />
                       </WidgetContainer>
                     </div>
                   ))}

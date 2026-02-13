@@ -12,7 +12,7 @@ export function AppHeader() {
     const linkClassName =
     "text-zinc-200 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-500 bg-zinc-500 hover:bg-zinc-300 py-1 px-3 rounded-md";
 
-  if (pathname === "/login") return null;
+  // if (pathname === "/login") return null;
 
   return (
     <header className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-black">

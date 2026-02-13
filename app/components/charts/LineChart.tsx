@@ -41,6 +41,28 @@ const DEFAULT_COLORS = [
   "#ff8904", // orange-400
 ];
 
+function toFiniteNumber(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function computeMinMax(rows: Record<string, unknown>[], keys: string[]): { min: number; max: number } | null {
+  let min = Number.POSITIVE_INFINITY;
+  let max = Number.NEGATIVE_INFINITY;
+  let saw = false;
+  for (const row of rows) {
+    for (const key of keys) {
+      const v = toFiniteNumber((row as Record<string, unknown>)[key]);
+      if (v === null) continue;
+      saw = true;
+      if (v < min) min = v;
+      if (v > max) max = v;
+    }
+  }
+  return saw ? { min, max } : null;
+}
+
 function toNumber(value: unknown): number {
   const n = typeof value === "number" ? value : Number(value);
   return Number.isFinite(n) ? n : 0;
@@ -73,6 +95,29 @@ export function LineChart({ xKey, series, rows, options }: Props) {
   const rightSeries = series.filter((s) => s.axis === "right");
   const hasRight = rightSeries.length > 0;
 
+  const leftStats = computeMinMax(rows, leftSeries.map((s) => s.yKey));
+  const rightStats = hasRight ? computeMinMax(rows, rightSeries.map((s) => s.yKey)) : null;
+  const alignZero =
+    !!leftStats &&
+    !!rightStats &&
+    leftStats.min < 0 &&
+    leftStats.max > 0 &&
+    rightStats.min < 0 &&
+    rightStats.max > 0;
+
+  const leftDomain: [number, number] | undefined = alignZero
+    ? (() => {
+        const maxAbs = Math.max(Math.abs(leftStats.min), Math.abs(leftStats.max));
+        return [-maxAbs, maxAbs];
+      })()
+    : undefined;
+  const rightDomain: [number, number] | undefined = alignZero
+    ? (() => {
+        const maxAbs = Math.max(Math.abs(rightStats.min), Math.abs(rightStats.max));
+        return [-maxAbs, maxAbs];
+      })()
+    : undefined;
+
   if (rows.length === 0) return null;
 
   return (
@@ -85,6 +130,7 @@ export function LineChart({ xKey, series, rows, options }: Props) {
             yAxisId="left"
             tick={{ fontSize: 12 }}
             tickFormatter={(v) => formatNumber(v, numberFormat)}
+            domain={leftDomain}
           />
           {hasRight && (
             <YAxis
@@ -92,6 +138,7 @@ export function LineChart({ xKey, series, rows, options }: Props) {
               orientation="right"
               tick={{ fontSize: 12 }}
               tickFormatter={(v) => formatNumber(v, numberFormat)}
+              domain={rightDomain}
             />
           )}
 

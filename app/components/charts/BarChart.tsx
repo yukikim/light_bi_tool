@@ -24,6 +24,7 @@ type ChartOptions = {
   showGrid?: boolean;
   showTooltip?: boolean;
   numberFormat?: "compact" | "comma" | "none";
+  baseline?: "zero" | "dataMin";
 };
 
 type Props = {
@@ -41,6 +42,55 @@ const DEFAULT_COLORS = [
   "#a684ff", // violet-400
   "#ff8904", // orange-400
 ];
+
+function toFiniteNumber(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function computeMinMax(
+  rows: Record<string, unknown>[],
+  keys: string[],
+  stacked: boolean,
+): { min: number; max: number } | null {
+  if (keys.length === 0) return null;
+
+  let min = Number.POSITIVE_INFINITY;
+  let max = Number.NEGATIVE_INFINITY;
+  let saw = false;
+
+  for (const row of rows) {
+    if (!stacked) {
+      for (const key of keys) {
+        const v = toFiniteNumber((row as Record<string, unknown>)[key]);
+        if (v === null) continue;
+        saw = true;
+        if (v < min) min = v;
+        if (v > max) max = v;
+      }
+      continue;
+    }
+
+    // stacked: positive/negative を分けて合計（Rechartsのsign-based stackingに近い形）
+    let posSum = 0;
+    let negSum = 0;
+    let rowSaw = false;
+    for (const key of keys) {
+      const v = toFiniteNumber((row as Record<string, unknown>)[key]);
+      if (v === null) continue;
+      rowSaw = true;
+      if (v >= 0) posSum += v;
+      else negSum += v;
+    }
+    if (!rowSaw) continue;
+    saw = true;
+    if (negSum < min) min = negSum;
+    if (posSum > max) max = posSum;
+  }
+
+  return saw ? { min, max } : null;
+}
 
 function toNumber(value: unknown): number {
   const n = typeof value === "number" ? value : Number(value);
@@ -71,23 +121,62 @@ export function BarChart({ xKey, series, rows, options }: Props) {
   const showTooltip = options?.showTooltip ?? true;
   const stacked = options?.stacked ?? false;
   const numberFormat = options?.numberFormat ?? "comma";
+  const baseline = options?.baseline ?? "zero";
 
   const leftSeries = series.filter((s) => (s.axis ?? "left") === "left");
   const rightSeries = series.filter((s) => s.axis === "right");
   const hasRight = rightSeries.length > 0;
+
+  const leftStats = computeMinMax(rows, leftSeries.map((s) => s.yKey), stacked);
+  const rightStats = hasRight ? computeMinMax(rows, rightSeries.map((s) => s.yKey), stacked) : null;
+  const canAlignZero =
+    !!leftStats &&
+    !!rightStats &&
+    leftStats.min < 0 &&
+    leftStats.max > 0 &&
+    rightStats.min < 0 &&
+    rightStats.max > 0;
+
+  const useDataMinBaselineLeft = baseline === "dataMin" && !!leftStats && leftStats.min < 0;
+  const useDataMinBaselineRight = baseline === "dataMin" && !!rightStats && rightStats.min < 0;
+
+  const leftDomain: [number, number] | undefined = useDataMinBaselineLeft
+    ? [leftStats.min, leftStats.max]
+    : canAlignZero
+      ? (() => {
+          const maxAbs = Math.max(Math.abs(leftStats.min), Math.abs(leftStats.max));
+          return [-maxAbs, maxAbs];
+        })()
+      : undefined;
+
+  const rightDomain: [number, number] | undefined = useDataMinBaselineRight
+    ? [rightStats.min, rightStats.max]
+    : canAlignZero
+      ? (() => {
+          const maxAbs = Math.max(Math.abs(rightStats.min), Math.abs(rightStats.max));
+          return [-maxAbs, maxAbs];
+        })()
+      : undefined;
+
+  const useDataMinBaseline = useDataMinBaselineLeft || useDataMinBaselineRight;
 
   if (rows.length === 0) return null;
 
   return (
     <div className="h-full w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <ReBarChart data={rows} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
+        <ReBarChart
+          data={rows}
+          margin={{ top: 8, right: 16, left: 8, bottom: 8 }}
+          baseValue={useDataMinBaseline ? "dataMin" : undefined}
+        >
           {showGrid && <CartesianGrid strokeDasharray="3 3" />}
           <XAxis dataKey={xKey} tick={{ fontSize: 12 }} tickFormatter={formatDateLabel} />
           <YAxis
             yAxisId="left"
             tick={{ fontSize: 12 }}
             tickFormatter={(v) => formatNumber(v, numberFormat)}
+            domain={leftDomain}
           />
           {hasRight && (
             <YAxis
@@ -95,6 +184,7 @@ export function BarChart({ xKey, series, rows, options }: Props) {
               orientation="right"
               tick={{ fontSize: 12 }}
               tickFormatter={(v) => formatNumber(v, numberFormat)}
+              domain={rightDomain}
             />
           )}
 

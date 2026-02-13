@@ -20,6 +20,8 @@ type ChartOptions = {
   showGrid?: boolean;
   showTooltip?: boolean;
   numberFormat?: "compact" | "comma" | "none";
+  // BarChartのみで使用: マイナス値があるときでもグラフの始点を最下部(dataMin)にしたい場合に指定
+  baseline?: "zero" | "dataMin";
 };
 
 type ChartConfig = {
@@ -311,7 +313,7 @@ export function WidgetRenderer({ widget, queryParamDefs, globalParams }: Props) 
       )}
 
       {!isLoading && !error && data && data.rows.length > 0 && (
-        <div className="flex min-h-0 flex-1 flex-col">
+        <div className="flex min-h-80 flex-1 flex-col">
           {widget.type === "table" && <TableChart columns={data.columns} rows={data.rows} />}
           {widget.type === "bar" &&
             (() => {
