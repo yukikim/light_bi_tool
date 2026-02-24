@@ -45,6 +45,71 @@ SQL実行/保存、Dashboard & Widget、CSVアップロード「1機能」、簡
 - ウィジェット: クエリ結果の描画単位（table/bar/line）
 - ダッシュボード: ウィジェット配置（x,y,w,h）を持つ画面
 
+### csvアップロードでテーブル自動作成
+![CSVアップロード](/docs/upload-img.gif)
+
+クエリリストに自動でクエリが作成されます
+```sql
+SELECT * FROM "csv_schema"."sales_and_profits_1771907591810_545c6c"
+```
+### 新規クエリ作成
+![クエリ作成](/docs/create-sql.gif)
+
+曜日別の平均売上・利益分析SQL(Postgres)
+
+```sql
+SELECT 
+    TO_CHAR(date, 'Dy') AS day_week,
+    ROUND(AVG(sales), 0) AS avg_sales,
+    ROUND(AVG(profit), 0) AS avg_profit,
+    EXTRACT(DOW FROM date) AS week_no
+FROM csv_schema."sales_and_profits_1771907591810_545c6c"
+GROUP BY day_week, week_no
+ORDER BY week_no;
+
+```
+### 新規ダッシュボードとウィジット作成(グラフ)
+![クエリ作成](/docs/create-widget.gif)
+
+#### クエリ選択
+曜日別の平均売上・利益分析
+
+JSON(グラフ設定)編集
+
+```json
+
+{
+  "xKey": "day_week",
+  "series": [
+    {
+      "axis": "left",
+      "yKey": "avg_sales",
+      "label": "売上"
+    },
+    {
+      "axis": "left",
+      "yKey": "avg_profit",
+      "label": "利益"
+    }
+  ],
+  "options": {
+    "stacked": false,
+    "baseline": "dataMin",
+    "showGrid": true,
+    "showLegend": true,
+    "colorsByKey": {
+      "avg_sales": "#00bba7",
+      "avg_profit": "#ed6aff"
+    },
+    "showTooltip": true,
+    "numberFormat": "comma"
+  }
+}
+
+```
+
+
+
 ## ウィジェットのグラフ設定（config JSON）
 
 ダッシュボードのウィジェット（type: `line` / `bar`）には、任意で `config`（JSON）を持たせられます。
@@ -72,24 +137,34 @@ SQL実行/保存、Dashboard & Widget、CSVアップロード「1機能」、簡
 
 ```json
 {
-	"xKey": "date",
-	"series": [
-		{ "yKey": "sales", "label": "売上", "axis": "left" },
-		{ "yKey": "profit", "label": "利益", "axis": "right" }
-	],
-	"options": {
-		"showLegend": true,
-		"showGrid": true,
-		"showTooltip": true,
-		"numberFormat": "comma",
-		"colorsByKey": {
-			"sales": "#ff6467",
-			"profit": "#05df72"
-		}
-	}
+  "xKey": "day_week",
+  "series": [
+    {
+      "axis": "left",
+      "yKey": "avg_sales",
+      "label": "売上"
+    },
+    {
+      "axis": "left",
+      "yKey": "avg_profit",
+      "label": "利益"
+    }
+  ],
+  "options": {
+    "stacked": false,
+    "baseline": "dataMin",
+    "showGrid": true,
+    "showLegend": true,
+    "showTooltip": true,
+	"colorsByKey": {
+		"avg_sales": "#00bba7",
+		"avg_profit": "#ed6aff"
+	},
+    "numberFormat": "comma"
+  }
 }
-```
 
+```
 ### 例: bar（パレットで色を指定）
 
 ```json
