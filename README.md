@@ -259,4 +259,3 @@ NEXT_BASE_URL=http://localhost:3000 npm run smoke:next:csv
 - 要件: [docs/要件定義書.md](docs/%E8%A6%81%E4%BB%B6%E5%AE%9A%E7%BE%A9%E6%9B%B8.md)
 - 基本設計: [docs/基本設計書.md](docs/%E5%9F%BA%E6%9C%AC%E8%A8%AD%E8%A8%88%E6%9B%B8.md)
 - 実装計画: [docs/実装計画書.md](docs/%E5%AE%9F%E8%A3%85%E8%A8%88%E7%94%BB%E6%9B%B8.md)
-- 開発ログ: [docs/dev_record.md](docs/dev_record.md)
