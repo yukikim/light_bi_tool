@@ -23,6 +23,11 @@ type ChartOptions = {
   showGrid?: boolean;
   showTooltip?: boolean;
   numberFormat?: "compact" | "comma" | "none";
+
+  // 追加: グラフ色の任意指定
+  // series.color よりは低い優先度。指定がなければ DEFAULT_COLORS にフォールバックします。
+  colors?: string[]; // パレット（系列の順に割り当て）
+  colorsByKey?: Record<string, string>; // yKey ごとの色（例: { sales: "#ff0000" }）
 };
 
 type Props = {
@@ -85,11 +90,29 @@ function formatDateLabel(value: unknown): string {
   return String(value ?? "");
 }
 
+function resolveSeriesColor(args: {
+  series: SeriesConfig;
+  palette: string[];
+  colorsByKey: Record<string, string>;
+  index: number;
+}): string {
+  const { series, palette, colorsByKey, index } = args;
+  return (
+    series.color ??
+    colorsByKey[series.yKey] ??
+    palette[index % palette.length] ??
+    DEFAULT_COLORS[index % DEFAULT_COLORS.length]
+  );
+}
+
 export function LineChart({ xKey, series, rows, options }: Props) {
   const showLegend = options?.showLegend ?? true;
   const showGrid = options?.showGrid ?? true;
   const showTooltip = options?.showTooltip ?? true;
   const numberFormat = options?.numberFormat ?? "comma";
+
+  const palette = options?.colors?.length ? options.colors : DEFAULT_COLORS;
+  const colorsByKey = options?.colorsByKey ?? {};
 
   const leftSeries = series.filter((s) => (s.axis ?? "left") === "left");
   const rightSeries = series.filter((s) => s.axis === "right");
@@ -171,7 +194,7 @@ export function LineChart({ xKey, series, rows, options }: Props) {
               type="monotone"
               dataKey={s.yKey}
               name={s.label ?? s.yKey}
-              stroke={s.color ?? DEFAULT_COLORS[idx % DEFAULT_COLORS.length]}
+              stroke={resolveSeriesColor({ series: s, palette, colorsByKey, index: idx })}
               strokeWidth={2}
               dot={false}
               isAnimationActive={false}
@@ -184,9 +207,12 @@ export function LineChart({ xKey, series, rows, options }: Props) {
               type="monotone"
               dataKey={s.yKey}
               name={s.label ?? s.yKey}
-              stroke={
-                s.color ?? DEFAULT_COLORS[(leftSeries.length + idx) % DEFAULT_COLORS.length]
-              }
+              stroke={resolveSeriesColor({
+                series: s,
+                palette,
+                colorsByKey,
+                index: leftSeries.length + idx,
+              })}
               strokeWidth={2}
               dot={false}
               isAnimationActive={false}

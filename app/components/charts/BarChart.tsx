@@ -25,6 +25,11 @@ type ChartOptions = {
   showTooltip?: boolean;
   numberFormat?: "compact" | "comma" | "none";
   baseline?: "zero" | "dataMin";
+
+  // 追加: グラフ色の任意指定
+  // series.color よりは低い優先度。指定がなければ DEFAULT_COLORS にフォールバックします。
+  colors?: string[]; // パレット（系列の順に割り当て）
+  colorsByKey?: Record<string, string>; // yKey ごとの色（例: { sales: "#ff0000" }）
 };
 
 type Props = {
@@ -115,6 +120,21 @@ function formatDateLabel(value: unknown): string {
   return String(value ?? "");
 }
 
+function resolveSeriesColor(args: {
+  series: SeriesConfig;
+  palette: string[];
+  colorsByKey: Record<string, string>;
+  index: number;
+}): string {
+  const { series, palette, colorsByKey, index } = args;
+  return (
+    series.color ??
+    colorsByKey[series.yKey] ??
+    palette[index % palette.length] ??
+    DEFAULT_COLORS[index % DEFAULT_COLORS.length]
+  );
+}
+
 export function BarChart({ xKey, series, rows, options }: Props) {
   const showLegend = options?.showLegend ?? true;
   const showGrid = options?.showGrid ?? true;
@@ -122,6 +142,9 @@ export function BarChart({ xKey, series, rows, options }: Props) {
   const stacked = options?.stacked ?? false;
   const numberFormat = options?.numberFormat ?? "comma";
   const baseline = options?.baseline ?? "zero";
+
+  const palette = options?.colors?.length ? options.colors : DEFAULT_COLORS;
+  const colorsByKey = options?.colorsByKey ?? {};
 
   const leftSeries = series.filter((s) => (s.axis ?? "left") === "left");
   const rightSeries = series.filter((s) => s.axis === "right");
@@ -216,7 +239,7 @@ export function BarChart({ xKey, series, rows, options }: Props) {
               yAxisId="left"
               dataKey={s.yKey}
               name={s.label ?? s.yKey}
-              fill={s.color ?? DEFAULT_COLORS[idx % DEFAULT_COLORS.length]}
+              fill={resolveSeriesColor({ series: s, palette, colorsByKey, index: idx })}
               stackId={stacked ? "stack" : undefined}
               isAnimationActive={false}
             />
@@ -227,7 +250,12 @@ export function BarChart({ xKey, series, rows, options }: Props) {
               yAxisId="right"
               dataKey={s.yKey}
               name={s.label ?? s.yKey}
-              fill={s.color ?? DEFAULT_COLORS[(leftSeries.length + idx) % DEFAULT_COLORS.length]}
+              fill={resolveSeriesColor({
+                series: s,
+                palette,
+                colorsByKey,
+                index: leftSeries.length + idx,
+              })}
               stackId={stacked ? "stackR" : undefined}
               isAnimationActive={false}
             />
