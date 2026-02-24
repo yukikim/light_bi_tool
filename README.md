@@ -6,6 +6,9 @@ SQL実行/保存、Dashboard & Widget、CSVアップロード「1機能」、簡
 - Backend: NestJS
 - DB: PostgreSQL (Docker)
 
+![アニメーションの説明](/docs/output-1.gif)
+
+
 ## MVPの整理
 
 このリポジトリ（かんたんBIツール / LightBI）でいう「BIツール」を、MVPとして成立させるための最小要素に分解して整理します。
@@ -41,6 +44,72 @@ SQL実行/保存、Dashboard & Widget、CSVアップロード「1機能」、簡
 - クエリ: 保存されたSQL（+ パラメータ定義）
 - ウィジェット: クエリ結果の描画単位（table/bar/line）
 - ダッシュボード: ウィジェット配置（x,y,w,h）を持つ画面
+
+## ウィジェットのグラフ設定（config JSON）
+
+ダッシュボードのウィジェット（type: `line` / `bar`）には、任意で `config`（JSON）を持たせられます。
+
+- `xKey`: X軸に使う列名（未指定の場合は先頭列を採用）
+- `series`: 描画する系列の配列（未指定の場合は `yKey` / `yKeys` から補完）
+	- `yKey`: Y軸に使う列名
+	- `label`: 凡例表示名（任意）
+	- `axis`: `left` / `right`（任意。未指定は `left`）
+	- `color`: 系列の色（任意。これが最優先）
+- `options`: 表示オプション（任意）
+	- 共通: `showLegend`, `showGrid`, `showTooltip`, `numberFormat`
+	- barのみ: `stacked`, `baseline`
+	- 色指定: `colors`（パレット）, `colorsByKey`（yKeyごと）
+
+色指定の優先順位は `series.color` → `options.colorsByKey[yKey]` → `options.colors` → デフォルトです。
+
+### 最小例（yKeysを使う簡易指定）
+
+```json
+{ "xKey": "date", "yKeys": ["sales"] }
+```
+
+### 例: line（キー別に色を指定）
+
+```json
+{
+	"xKey": "date",
+	"series": [
+		{ "yKey": "sales", "label": "売上", "axis": "left" },
+		{ "yKey": "profit", "label": "利益", "axis": "right" }
+	],
+	"options": {
+		"showLegend": true,
+		"showGrid": true,
+		"showTooltip": true,
+		"numberFormat": "comma",
+		"colorsByKey": {
+			"sales": "#ff6467",
+			"profit": "#05df72"
+		}
+	}
+}
+```
+
+### 例: bar（パレットで色を指定）
+
+```json
+{
+	"xKey": "category",
+	"series": [
+		{ "yKey": "sales", "label": "売上" },
+		{ "yKey": "orders", "label": "注文件数", "axis": "right" }
+	],
+	"options": {
+		"stacked": false,
+		"baseline": "zero",
+		"showLegend": true,
+		"showGrid": true,
+		"showTooltip": true,
+		"numberFormat": "compact",
+		"colors": ["#51a2ff", "#ffb900"]
+	}
+}
+```
 
 ## クイックスタート（デモ: 5分）
 

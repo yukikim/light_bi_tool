@@ -22,6 +22,11 @@ type ChartOptions = {
   numberFormat?: "compact" | "comma" | "none";
   // BarChartのみで使用: マイナス値があるときでもグラフの始点を最下部(dataMin)にしたい場合に指定
   baseline?: "zero" | "dataMin";
+
+  // 追加: グラフ色の任意指定（line/bar で使用）
+  // series.color よりは低い優先度。指定がなければチャート側のデフォルト配色にフォールバックします。
+  colors?: string[];
+  colorsByKey?: Record<string, string>;
 };
 
 type ChartConfig = {
